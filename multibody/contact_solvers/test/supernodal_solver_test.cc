@@ -6,6 +6,7 @@
 #include "drake/common/unused.h"
 #include "drake/multibody/contact_solvers/block_sparse_supernodal_solver.h"
 #include "drake/multibody/contact_solvers/conex_supernodal_solver.h"
+#include "drake/multibody/contact_solvers/cuda_supernodal_solver.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -116,7 +117,7 @@ std::vector<BlockTriplet> MakeBlockTriplets(
 template <typename ConcreteSolver>
 class SuperNodalSolverTest : public ::testing::Test {};
 using Implementations =
-    ::testing::Types<ConexSuperNodalSolver, BlockSparseSuperNodalSolver>;
+    ::testing::Types<ConexSuperNodalSolver, BlockSparseSuperNodalSolver, CUDASuperNodalSolver>;
 TYPED_TEST_SUITE(SuperNodalSolverTest, Implementations);
 
 // In this test the partition of the columns of J doesn't refine the partition
@@ -152,6 +153,10 @@ TYPED_TEST(SuperNodalSolverTest, IncompatibleJacobianAndMass) {
         "Column partition induced by mass matrix must refine the partition "
         "induced by the Jacobian.");
   } else if (std::is_same_v<TypeParam, BlockSparseSuperNodalSolver>) {
+    DRAKE_EXPECT_THROWS_MESSAGE(
+        TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
+        ".*Mass.*Jacobians.*incompatible.*");
+  } else if (std::is_same_v<TypeParam, CUDASuperNodalSolver>) {
     DRAKE_EXPECT_THROWS_MESSAGE(
         TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
         ".*Mass.*Jacobians.*incompatible.*");
@@ -299,6 +304,10 @@ TYPED_TEST(SuperNodalSolverTest,
     DRAKE_EXPECT_THROWS_MESSAGE(
         TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
         ".*Mass.*Jacobians.*incompatible.*");
+  } else if (std::is_same_v<TypeParam, CUDASuperNodalSolver>) {
+    DRAKE_EXPECT_THROWS_MESSAGE(
+        TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
+        ".*Mass.*Jacobians.*incompatible.*");
   } else {
     DRAKE_UNREACHABLE();
   }
@@ -354,6 +363,10 @@ TYPED_TEST(SuperNodalSolverTest,
     const MatrixXd full_matrix_ref = M + J.transpose() * G * J;
     EXPECT_NEAR((solver.MakeFullMatrix() - full_matrix_ref).norm(), 0, 1e-15);
   } else if (std::is_same_v<TypeParam, BlockSparseSuperNodalSolver>) {
+    DRAKE_EXPECT_THROWS_MESSAGE(
+        TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
+        ".*Mass.*Jacobians.*incompatible.*");
+  } else if (std::is_same_v<TypeParam, CUDASuperNodalSolver>) {
     DRAKE_EXPECT_THROWS_MESSAGE(
         TypeParam(num_row_blocks_of_J, Jtriplets, blocks_of_M),
         ".*Mass.*Jacobians.*incompatible.*");

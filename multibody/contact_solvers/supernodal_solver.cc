@@ -1,5 +1,7 @@
 #include "drake/multibody/contact_solvers/supernodal_solver.h"
 
+#include "drake/common/ssize.h"
+
 using Eigen::MatrixXd;
 
 namespace drake {
@@ -144,6 +146,20 @@ std::vector<int> GetJacobianBlockSizesVerifyTriplets(
   }
 
   return block_column_size;
+}
+
+bool MassMatrixPartitionEqualsJacobianPartition(
+    const std::vector<int>& jacobian_column_block_size,
+    const std::vector<MatrixXd>& mass_matrices) {
+  if (jacobian_column_block_size.size() != mass_matrices.size()) {
+    return false;
+  }
+  for (int i = 0; i < ssize(mass_matrices); ++i) {
+    if (jacobian_column_block_size[i] != mass_matrices[i].rows()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace internal

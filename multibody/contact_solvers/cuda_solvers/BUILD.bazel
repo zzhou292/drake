@@ -1,0 +1,45 @@
+load(
+    "//tools/skylark:drake_cc.bzl",
+    "drake_cc_googletest",
+    "drake_cc_library",
+    "drake_cc_package_library",
+)
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+drake_cc_package_library(
+    name = "cuda_solvers",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":cuda_sparse_linear_solver",
+        ":cuda_sparse_cholesky_solver",
+    ],
+)
+
+drake_cc_library(
+    name = "cuda_sparse_linear_solver",
+    srcs = [],
+    hdrs = ["cuda_sparse_linear_solver.h"],
+    deps = [
+        "//multibody/contact_solvers:csr_matrix",
+        "//common:default_scalars",
+        "//common:essential",
+    ],
+)
+
+drake_cc_library(
+    name = "cuda_sparse_cholesky_solver",
+    srcs = ["cuda_sparse_cholesky_solver.cc"],
+    hdrs = ["cuda_sparse_cholesky_solver.h"],
+    deps = [
+        ":cuda_sparse_linear_solver",
+        "//multibody/contact_solvers:csr_matrix",
+        "//common:default_scalars",
+        "//common:essential",
+    ],
+)
+
+add_lint_tests()

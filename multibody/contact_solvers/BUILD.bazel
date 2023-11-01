@@ -132,6 +132,43 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "csr_matrix",
+    srcs = ["csr_matrix.cc"],
+    hdrs = ["csr_matrix.h"],
+    deps = [
+        ":block_sparse_lower_triangular_or_symmetric_matrix",
+        "//common:default_scalars",
+        "//common:essential",
+    ],
+)
+
+drake_cc_library(
+    name = "cuda_supernodal_solver",
+    srcs = ["cuda_supernodal_solver.cc"],
+    hdrs = ["cuda_supernodal_solver.h"],
+    deps = [
+        ":csr_matrix",
+        ":block_sparse_lower_triangular_or_symmetric_matrix",
+        ":supernodal_solver",
+        ":supernodal_solver_utils",
+        "//common:essential",
+        "//multibody/contact_solvers/cuda_solvers"
+    ],
+)
+
+drake_cc_library(
+    name = "cusolver_utils",
+    srcs = [],
+    hdrs = ["cusolver_utils.h"],
+    deps = [
+        "@cuda//:cudart",
+        "@cuda//:cublas",
+        "@cuda//:cublasLt",
+        "@cuda//:cusolver",
+    ]
+)
+
+drake_cc_library(
     name = "linear_operator",
     srcs = ["linear_operator.cc"],
     hdrs = ["linear_operator.h"],
@@ -227,6 +264,7 @@ drake_cc_library(
     deps = [
         ":block_sparse_cholesky_solver",
         ":supernodal_solver",
+        ":supernodal_solver_utils",
         "//common:essential",
     ],
 )
@@ -254,6 +292,17 @@ drake_cc_library(
         ":matrix_block",
         "//common:essential",
     ],
+)
+
+drake_cc_library(
+    name = "supernodal_solver_utils",
+    srcs = ["supernodal_solver_utils.cc"],
+    hdrs = ["supernodal_solver_utils.h"],
+    deps = [
+        ":block_sparse_lower_triangular_or_symmetric_matrix",
+        ":supernodal_solver",
+        "//common:essential",
+    ]
 )
 
 drake_cc_library(
@@ -311,6 +360,25 @@ drake_cc_googletest(
         "//common/test_utilities:eigen_matrix_compare",
         "//common/test_utilities:expect_throws_message",
     ],
+)
+
+drake_cc_googletest(
+    name = "csr_matrix_test",
+    deps = [
+        ":csr_matrix",
+        "//common/test_utilities:eigen_matrix_compare",
+    ],
+)
+
+drake_cc_googletest(
+    name = "cusolver_test",
+    deps = [
+        ":cusolver_utils",
+        "@cuda//:cudart",
+        "@cuda//:cublas",
+        "@cuda//:cublasLt",
+        "@cuda//:cusolver",
+    ]
 )
 
 drake_cc_googletest(
@@ -376,6 +444,7 @@ drake_cc_googletest(
     deps = [
         ":block_sparse_supernodal_solver",
         ":conex_supernodal_solver",
+        ":cuda_supernodal_solver",
         ":supernodal_solver",
         "//common/test_utilities:expect_throws_message",
     ],

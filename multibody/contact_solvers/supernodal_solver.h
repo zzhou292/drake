@@ -140,6 +140,17 @@ std::vector<std::vector<int>> GetRowToTripletMapping(
 std::vector<int> GetJacobianBlockSizesVerifyTriplets(
     const std::vector<BlockTriplet>& jacobian_blocks);
 
+//  Input verification helper for the constructors of
+//  various solvers. Returns true iff the given Jacobian matrix has
+//  the same partition as the given mass matrix.
+//  @param[in] jacobian_column_block_size The j-th entry contains the number of
+//  scalar columns in the j-th block column in the sparse Jacobian matrix.
+//  @param[in] mass_matrices  The i-th entry contains the i-th diagonal block of
+//  the block diagonal mass matrix.
+bool MassMatrixPartitionEqualsJacobianPartition(
+    const std::vector<int>& jacobian_column_block_size,
+    const std::vector<Eigen::MatrixXd>& mass_matrices);
+
 }  // namespace internal
 }  // namespace contact_solvers
 }  // namespace multibody
