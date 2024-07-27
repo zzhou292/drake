@@ -1,5 +1,6 @@
 #include "cuda_fullsolve.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -14,7 +15,7 @@ namespace {
 
 GTEST_TEST(KernelTest, FullSolveTest) {
   int numSpheres = 22;
-  int numProblems = 100;
+  int numProblems = 5000;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec, within a box of size 4x4x4, all
@@ -110,10 +111,23 @@ GTEST_TEST(KernelTest, FullSolveTest) {
 
   FullSolveSAP solver;
   solver.init(h_spheres, numProblems, numSpheres, numContacts, false);
+
+  // Record the start time
+  auto start = std::chrono::high_resolution_clock::now();
+
   for (int i = 0; i < 400; i++) {
     std::cout << "Step " << i << std::endl;
     solver.step();
   }
+
+  // Record the end time
+  auto end = std::chrono::high_resolution_clock::now();
+
+  // Calculate the duration
+  std::chrono::duration<double, std::milli> duration = end - start;
+  std::cout << "Time taken for 400 iterations: " << duration.count()
+            << "mili seconds" << std::endl;
+
   solver.destroy();
 }
 

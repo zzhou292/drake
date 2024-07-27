@@ -114,20 +114,40 @@ __device__ void CalcConstraintCost(SAPGPUData* data) {
 
 // Contruct Hessian, H = dynamics_matrix + J * G * J^T
 __device__ void CalculateHessian(SAPGPUData* data) {
-  int num_stride = ((data->NumVelocities() * data->NumVelocities()) + 31) / 32;
+  // int num_velocities = data->NumVelocities();
+  // int num_stride = ((num_velocities * num_velocities) + 31) / 32;
+  // for (int i = 0; i < num_stride; i++) {
+  //   int cur_idx = i * 32 + threadIdx.x;
+  //   if (cur_idx < num_velocities * num_velocities) {
+  //     int cur_col = cur_idx / num_velocities;
+  //     int cur_row = cur_idx % num_velocities;
+
+  //     if (cur_row < num_velocities && cur_col < num_velocities) {
+  //       data->H()(cur_row, cur_col) =
+  //           data->dynamics_matrix()(cur_row, cur_col) +
+  //           data->J().col(cur_row).dot(data->G_J().col(cur_col));
+  //     }
+  //   }
+  // }
+  int num_velocities = data->NumVelocities();
+  int num_stride = ((num_velocities * num_velocities) + 31) / 32;
   for (int i = 0; i < num_stride; i++) {
     int cur_idx = i * 32 + threadIdx.x;
-    if (cur_idx < data->NumVelocities() * data->NumVelocities()) {
-      int cur_col = cur_idx / (data->NumVelocities());
-      int cur_row = cur_idx % (data->NumVelocities());
+    if (cur_idx < num_velocities * num_velocities) {
+      int cur_col = cur_idx / num_velocities;
+      int cur_row = cur_idx % num_velocities;
 
-      if (cur_row < data->NumVelocities() && cur_col < data->NumVelocities()) {
+      if (cur_row < num_velocities && cur_col < num_velocities) {
+        double sum = 0.0;
+        for (int j = 0; j < data->num_active_contacts() * 3; j++) {
+          sum += data->J()(j, cur_row) * data->G_J()(j, cur_col);
+        }
         data->H()(cur_row, cur_col) =
-            data->dynamics_matrix()(cur_row, cur_col) +
-            data->J().col(cur_row).dot(data->G_J().col(cur_col));
+            data->dynamics_matrix()(cur_row, cur_col) + sum;
       }
     }
   }
+  __syncwarp();
 }
 
 // Calculate momentum gain and momentum cost
@@ -227,22 +247,45 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   int equ_idx = blockIdx.x;
   int thread_idx = threadIdx.x;
 
-  UpdateGammaG(data);
+  int num_velocities = data->NumVelocities();
+  int num_contacts = data->NumContacts();
+  int num_active_contacts = data->num_active_contacts();
 
+  // clock_t start = clock();
+  UpdateGammaG(data);
+  // clock_t end = clock();
+  // int time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for UpdateGammaG: %d\n", time);
+  // }
+
+  // start = clock();
   // Calculate Momentum Cost
   CalcMomentumCost(data, sums);
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalcMomentumCost: %d\n", time);
+  // }
 
+  // start = clock();
   // Calculate Constraint Cost
   CalcConstraintCost(data);
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalcConstraintCost: %d\n", time);
+  // }
 
+  // start = clock();
   // Calculate and assemble Hessian
   // Calculate G*J
-  for (int i = threadIdx.x; i < data->NumContacts(); i += blockDim.x) {
+  for (int i = threadIdx.x; i < num_active_contacts; i += blockDim.x) {
     int J_row = i * 3;
     // do a simple matrix multiplication of 3x3 multiplied by 3 by
     // 3*num_velocities
     for (int a = 0; a < 3; a++) {
-      for (int b = 0; b < data->NumVelocities(); b++) {
+      for (int b = 0; b < num_velocities; b++) {
         data->G_J()(J_row + a, b) = 0;
         for (int c = 0; c < 3; c++) {
           data->G_J()(J_row + a, b) +=
@@ -254,13 +297,25 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalculateHessian GJ: %d\n", time);
+  // }
+
+  // start = clock();
   CalculateHessian(data);
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalculateHessian: %d\n", time);
+  // }
 
   // Calculate negative gradient
-
-  for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
+  // start = clock();
+  for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
     double sum = 0.0;
-    for (int j = 0; j < 3 * data->NumContacts(); j++) {
+    for (int j = 0; j < 3 * num_contacts; j++) {
       sum += data->J()(j, i) * data->gamma_full()(j);
     }
     data->neg_grad()(i, 0) = -(data->momentum_gain()(i, 0) - sum);
@@ -268,9 +323,15 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  // Cholesky Factorization and Solve for search direction
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Calculate negative gradient: %d\n", time);
+  // }
 
-  int num_stride = (data->NumVelocities() + 31) / 32;
+  // Cholesky Factorization and Solve for search direction
+  // start = clock();
+  int num_stride = (num_velocities + 31) / 32;
 
   Eigen::Map<Eigen::MatrixXd> d_M = data->H();
   Eigen::Map<Eigen::MatrixXd> d_L = data->chol_L();
@@ -278,22 +339,36 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   Eigen::Map<Eigen::MatrixXd> d_x = data->chol_x();
   Eigen::Map<Eigen::MatrixXd> d_y = data->chol_y();
 
-  CholeskyFactorizationFunc(d_M, d_L, equ_idx, thread_idx,
-                            data->NumVelocities(), num_stride);
+  CholeskyFactorizationFunc(d_M, d_L, equ_idx, thread_idx, num_velocities,
+                            num_stride);
   __syncwarp();
-  CholeskySolveForwardFunc(d_L, d_b, d_y, equ_idx, thread_idx,
-                           data->NumVelocities(), num_stride);
+  CholeskySolveForwardFunc(d_L, d_b, d_y, equ_idx, thread_idx, num_velocities,
+                           num_stride);
   __syncwarp();
-  CholeskySolveBackwardFunc(d_L, d_y, d_x, equ_idx, thread_idx,
-                            data->NumVelocities(), num_stride);
+  CholeskySolveBackwardFunc(d_L, d_y, d_x, equ_idx, thread_idx, num_velocities,
+                            num_stride);
   __syncwarp();
+
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Cholesky Factorization and Solve: %d\n", time);
+  // }
 
   // Calculate the dl_dalpha0 for each problem
   // dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
   // also -neg_grad.dot(chol_x)
+
+  // start = clock();
   CalculateDlDalpha0(data, sums);
 
   __syncwarp();
+
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Calculate dl_dalpha0: %d\n", time);
+  // }
 }
 
 // Device function to evaluate the cost function at alpha
@@ -302,29 +377,6 @@ __device__ void SAPLineSearchEvalCost(
     Eigen::Map<Eigen::MatrixXd> v_alpha,
     Eigen::Map<Eigen::MatrixXd> v_guess_prev) {
   SAXPY(alpha, data->chol_x(), v_guess_prev, v_alpha);
-
-  // if (threadIdx.x == 0) {
-  //   printf("====================================\n");
-  //   printf("v_guess_prev:\n");
-  //   for (int i = 0; i < v_guess_prev.rows(); i++) {
-  //     printf(" %f\n", v_guess_prev(i, 0));
-  //   }
-
-  //   printf("v_alpha:\n");
-  //   for (int i = 0; i < v_alpha.rows(); i++) {
-  //     printf(" %f\n", v_alpha(i, 0));
-  //   }
-
-  //   printf("chol_x:\n");
-  //   for (int i = 0; i < data->chol_x().rows(); i++) {
-  //     printf(" %f\n", data->chol_x()(i, 0));
-  //   }
-
-  //   printf("v star:\n");
-  //   for (int i = 0; i < data->v_star().rows(); i++) {
-  //     printf(" %f\n", data->v_star()(i, 0));
-  //   }
-  // }
 
   __syncwarp();
 
@@ -520,8 +572,8 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // TODO: Update G and gamma
   SAPLineSearchEvalCost(data, alpha_r, ell_r, sums, v_alpha, v_guess_prev);
-  MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
-  MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
+  // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
+  // MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
   SAPLineSearchEvalDer(data, alpha_r, dell_dalpha_r, sums, v_alpha, delta_v_c,
                        delta_p);
 
@@ -545,8 +597,8 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
   // TODO: Update G and gamma
   SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                         v_guess_prev);
-  MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
-  MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
+  // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
+  // MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
   SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                        delta_v_c, delta_p);
   // evaluate the second derivative of mid_alpha
@@ -597,7 +649,7 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       // TODO: Update G and gamma
       SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                             v_guess_prev);
-      MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
+      // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
       SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                            delta_v_c, delta_p);
       // evaluate the second derivative of guess_alpha
@@ -762,12 +814,24 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
       // calculate search direction
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
+      // clock_t start_time = clock();
       CalcSearchDirection(data, sums + 5 + data->NumVelocities());
+      // clock_t end_time = clock();
+      // int time = (int)(end_time - start_time);
+      // if (threadIdx.x == 0) {
+      //   printf("Time for chol_x: %d\n", time);
+      // }
 
       // perform line search
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
+      // start_time = clock();
       double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
+      // end_time = clock();
+      // time = (int)(end_time - start_time);
+      // if (threadIdx.x == 0) {
+      //   printf("Time for line search: %d\n", time);
+      // }
 
       __syncwarp();
 
