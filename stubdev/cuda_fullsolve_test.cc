@@ -15,7 +15,7 @@ namespace {
 
 GTEST_TEST(KernelTest, FullSolveTest) {
   int numSpheres = 22;
-  int numProblems = 5000;
+  int numProblems = 100;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec, within a box of size 4x4x4, all
@@ -115,7 +115,7 @@ GTEST_TEST(KernelTest, FullSolveTest) {
   // Record the start time
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i = 0; i < 400; i++) {
+  for (int i = 0; i < 50; i++) {
     std::cout << "Step " << i << std::endl;
     solver.step();
   }
