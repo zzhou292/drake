@@ -20,6 +20,17 @@ struct Sphere {
   double damping;
 };
 
+// Define a plane geometry
+struct Plane {
+  Eigen::Vector3d n;
+  Eigen::Vector3d p1;
+  Eigen::Vector3d p2;
+
+  // material properties
+  double stiffness;
+  double damping;
+};
+
 // Structure to hold collision data
 struct CollisionData {
   bool isColliding;
@@ -42,6 +53,7 @@ struct CollisionData {
 // define a SAP data strucutre
 struct CollisionGPUData {
   void Initialize(Sphere* h_spheres, int m_num_problems, int m_num_spheres);
+  void InitializePlane(Plane* h_planes, int m_num_planes);
   void Update();
   void Destroy();
 
@@ -59,7 +71,13 @@ struct CollisionGPUData {
 
   Sphere* GetSpherePtr() { return d_spheres; }
 
+  Plane* GetPlanePtr() { return d_planes; }
+
   CollisionData* GetCollisionMatrixPtr() { return d_collisionMatrixSpheres; }
+
+  CollisionData* GetCollisionMatrixSpherePlanePtr() {
+    return d_collisionMatrixSpherePlane;
+  }
 
   double* GetJacobianPtr() { return d_jacobian; }
 
@@ -77,13 +95,16 @@ struct CollisionGPUData {
 
   double* GetContactDampingPtr() { return d_contact_damping; }
 
-  void CollisionEngine(const int numProblems, const int numSpheres);
+  void CollisionEngine(const int numProblems, const int numSpheres,
+                       const int numPlanes);
 
   void IntegrateExplicitEuler(const int numProblems, const int numSpheres);
 
  private:
   Sphere* d_spheres;
+  Plane* d_planes;
   CollisionData* d_collisionMatrixSpheres;
+  CollisionData* d_collisionMatrixSpherePlane;
   double* d_jacobian;
   int* d_num_collisions;
   double* d_dynamic_matrix;
@@ -96,4 +117,5 @@ struct CollisionGPUData {
 
   int num_problems = 0;
   int num_spheres = 0;
+  int num_planes = 0;
 };

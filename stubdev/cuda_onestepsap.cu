@@ -114,21 +114,6 @@ __device__ void CalcConstraintCost(SAPGPUData* data) {
 
 // Contruct Hessian, H = dynamics_matrix + J * G * J^T
 __device__ void CalculateHessian(SAPGPUData* data) {
-  // int num_velocities = data->NumVelocities();
-  // int num_stride = ((num_velocities * num_velocities) + 31) / 32;
-  // for (int i = 0; i < num_stride; i++) {
-  //   int cur_idx = i * 32 + threadIdx.x;
-  //   if (cur_idx < num_velocities * num_velocities) {
-  //     int cur_col = cur_idx / num_velocities;
-  //     int cur_row = cur_idx % num_velocities;
-
-  //     if (cur_row < num_velocities && cur_col < num_velocities) {
-  //       data->H()(cur_row, cur_col) =
-  //           data->dynamics_matrix()(cur_row, cur_col) +
-  //           data->J().col(cur_row).dot(data->G_J().col(cur_col));
-  //     }
-  //   }
-  // }
   int num_velocities = data->NumVelocities();
   int num_stride = ((num_velocities * num_velocities) + 31) / 32;
   for (int i = 0; i < num_stride; i++) {
@@ -189,34 +174,64 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
   for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
        i += blockDim.x) {
     if (i % 3 == 2) {
-      // compute corresponding v_c
-      // contact velocity on the z direction in the contact local frame
-      double v_contact_z = -(data->J().row(i) * data->v_guess())(0, 0);
-      double phi_0 = data->phi0(int(i / 3))(0, 0);
+      // // compute corresponding v_c
+      // // contact velocity on the z direction in the contact local frame
+      // double v_contact_z = -(data->J().row(i) * data->v_guess())(0, 0);
+      // double phi_0 = data->phi0(int(i / 3))(0, 0);
 
-      // update each gamma
-      // first-order approximation of the penetration
-      // max(0.0, phi_0 + dt * v_contact_z)
-      double pen_approx = phi_0 + dt * v_contact_z;
-      if (pen_approx <= 0.0) pen_approx = 0.0;
+      // // update each gamma
+      // // first-order approximation of the penetration
+      // // max(0.0, phi_0 + dt * v_contact_z)
+      // double pen_approx = phi_0 + dt * v_contact_z;
+      // if (pen_approx <= 0.0) pen_approx = 0.0;
 
-      double damping_term =
-          1.0 + data->contact_damping(int(i / 3))(0, 0) * v_contact_z;
-      if (damping_term <= 0.0) damping_term = 0.0;
+      // double damping_term =
+      //     1.0 + data->contact_damping(int(i / 3))(0, 0) * v_contact_z;
+      // if (damping_term <= 0.0) damping_term = 0.0;
 
-      data->gamma(int(i / 3))(2) = dt *
-                                   data->contact_stiffness(int(i / 3))(0, 0) *
-                                   pen_approx * damping_term;
+      // data->gamma(int(i / 3))(2) = dt *
+      //                              data->contact_stiffness(int(i / 3))(0, 0)
+      //                              * pen_approx * damping_term;
 
-      // update each G
-      // impulse gradiant
-      double np =
-          -dt *
-          ((data->contact_stiffness(int(i / 3))(0, 0) * dt * damping_term) +
-           data->contact_damping(int(i / 3))(0, 0) *
-               data->contact_stiffness(int(i / 3))(0, 0) * pen_approx);
-      // assign -np to G(2,2)
+      // // update each G
+      // // impulse gradiant
+      // double np =
+      //     -dt *
+      //     ((data->contact_stiffness(int(i / 3))(0, 0) * dt * damping_term) +
+      //      data->contact_damping(int(i / 3))(0, 0) *
+      //          data->contact_stiffness(int(i / 3))(0, 0) * pen_approx);
+      // // assign -np to G(2,2)
+      // data->G(int(i / 3))(2, 2) = -np;
+
+      double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
+      double k = data->contact_stiffness(int(i / 3))(0, 0);
+      double d = data->contact_damping(int(i / 3))(0, 0);
+      double fe0 = data->phi0(int(i / 3))(0, 0) * k;
+      double fe = fe0 + dt * k * xdot;
+      double damping = 1.0 + d * xdot;
+
+      // calc G
+
+      double np = 0.0;
+
+      double dn_dvn = -dt * (k * dt * damping + d * fe);
+
+      np = dn_dvn;
+
+      if (fe <= 0.0) np = 0.0;
+
+      if (damping <= 0.0) np = 0.0;
+
       data->G(int(i / 3))(2, 2) = -np;
+
+      // calc gamma
+
+      double impulse = 0.0;
+      impulse = dt * fe * damping;
+      if (fe <= 0.0) impulse = 0.0;
+      if (damping <= 0.0) impulse = 0.0;
+
+      data->gamma(int(i / 3))(2) = impulse;
     }
   }
   __syncwarp();
@@ -248,36 +263,35 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   int thread_idx = threadIdx.x;
 
   int num_velocities = data->NumVelocities();
-  int num_contacts = data->NumContacts();
   int num_active_contacts = data->num_active_contacts();
 
-  // clock_t start = clock();
+  clock_t start = clock();
   UpdateGammaG(data);
-  // clock_t end = clock();
-  // int time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for UpdateGammaG: %d\n", time);
-  // }
+  clock_t end = clock();
+  int time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for UpdateGammaG (in search dir): %d\n", time);
+  }
 
-  // start = clock();
+  start = clock();
   // Calculate Momentum Cost
   CalcMomentumCost(data, sums);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalcMomentumCost: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for CalcMomentumCost (in search dir): %d\n", time);
+  }
 
-  // start = clock();
+  start = clock();
   // Calculate Constraint Cost
   CalcConstraintCost(data);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalcConstraintCost: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for CalcConstraintCost (in search dir): %d\n", time);
+  }
 
-  // start = clock();
+  start = clock();
   // Calculate and assemble Hessian
   // Calculate G*J
   for (int i = threadIdx.x; i < num_active_contacts; i += blockDim.x) {
@@ -297,25 +311,25 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalculateHessian GJ: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for CalculateHessian GJ (in search dir): %d\n", time);
+  }
 
-  // start = clock();
+  start = clock();
   CalculateHessian(data);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalculateHessian: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for CalculateHessian (in search dir): %d\n", time);
+  }
 
   // Calculate negative gradient
-  // start = clock();
+  start = clock();
   for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
     double sum = 0.0;
-    for (int j = 0; j < 3 * num_contacts; j++) {
+    for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
       sum += data->J()(j, i) * data->gamma_full()(j);
     }
     data->neg_grad()(i, 0) = -(data->momentum_gain()(i, 0) - sum);
@@ -323,14 +337,14 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Calculate negative gradient: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for Calculate negative gradient(in search dir): %d\n", time);
+  }
 
   // Cholesky Factorization and Solve for search direction
-  // start = clock();
+  start = clock();
   int num_stride = (num_velocities + 31) / 32;
 
   Eigen::Map<Eigen::MatrixXd> d_M = data->H();
@@ -349,26 +363,27 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
                             num_stride);
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Cholesky Factorization and Solve: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for Cholesky Factorization and Solve (in search dir):: %d\n",
+           time);
+  }
 
   // Calculate the dl_dalpha0 for each problem
   // dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
   // also -neg_grad.dot(chol_x)
 
-  // start = clock();
+  start = clock();
   CalculateDlDalpha0(data, sums);
 
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Calculate dl_dalpha0: %d\n", time);
-  // }
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for Calculate dl_dalpha0 (in search dir):: %d\n", time);
+  }
 }
 
 // Device function to evaluate the cost function at alpha
@@ -380,10 +395,8 @@ __device__ void SAPLineSearchEvalCost(
 
   __syncwarp();
 
-  if (threadIdx.x == 0) {
-    for (int i = 0; i < data->NumVelocities(); i++) {
-      data->v_guess()(i, 0) = v_alpha(i, 0);
-    }
+  for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
+    data->v_guess()(i, 0) = v_alpha(i, 0);
   }
 
   __syncwarp();
@@ -562,18 +575,17 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   __syncwarp();
 
-  // evaluate the cost function at l_alpha and r_alpha
-  // TODO: Update G and gamma
-  SAPLineSearchEvalCost(data, alpha_l, ell_l, sums, v_alpha, v_guess_prev);
   MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
   MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
+
+  // evaluate the cost function at l_alpha and r_alpha
+
+  SAPLineSearchEvalCost(data, alpha_l, ell_l, sums, v_alpha, v_guess_prev);
+
   SAPLineSearchEvalDer(data, alpha_l, dell_dalpha_l, sums, v_alpha, delta_v_c,
                        delta_p);
 
-  // TODO: Update G and gamma
   SAPLineSearchEvalCost(data, alpha_r, ell_r, sums, v_alpha, v_guess_prev);
-  // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
-  // MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
   SAPLineSearchEvalDer(data, alpha_r, dell_dalpha_r, sums, v_alpha, delta_v_c,
                        delta_p);
 
@@ -595,19 +607,38 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // we evaluate fguess the last as cache will be left in the global memory
   // TODO: Update G and gamma
+  clock_t start = clock();
   SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                         v_guess_prev);
-  // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
-  // MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
+  clock_t end = clock();
+  int time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for SAPLineSearchEvalCost(in Line Search): %d\n", time);
+  }
+  // ==========================
+  start = clock();
   SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                        delta_v_c, delta_p);
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for SAPLineSearchEvalDer(in Line Search): %d\n", time);
+  }
+  // ================================
+  start = clock();
   // evaluate the second derivative of mid_alpha
   SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums, v_alpha,
                         delta_v_c, delta_p);
+  end = clock();
+  time = (int)(end - start);
+  if (thread_idx == 0) {
+    printf("Time for SAPLineSearchEval2Der(in Line Search): %d\n", time);
+  }
 
   // TODO: replace this while loop to a for loop
   // SAP line search loop
   // TODO: set max_iteration somewhere else
+  // int line_search_iter_recorder = 0;
   for (int i = 0; i < max_iteration; i++) {
     if (flag == 1.0) {
       if (threadIdx.x == 0) {
@@ -644,12 +675,14 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
       __syncwarp();
 
+      // if (threadIdx.x == 0) line_search_iter_recorder++;
+      // __syncwarp();
+
       // we evaluate fguess the last as cache will be left in the global
       // memory
       // TODO: Update G and gamma
       SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                             v_guess_prev);
-      // MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
       SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                            delta_v_c, delta_p);
       // evaluate the second derivative of guess_alpha
@@ -690,6 +723,8 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       __syncwarp();
     }
   }
+  // if (threadIdx.x == 0)
+  //   printf("Line search iteration: %d\n", line_search_iter_recorder);
 
   return alpha_guess;
 }
@@ -735,7 +770,7 @@ __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
   double j_tilde_2 = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     double temp = 0.0;
-    for (int j = 0; j < 3 * data->NumContacts(); j++) {
+    for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
       temp += data->J()(j, i) * data->gamma_full()(j);
     }
     j_tilde_2 += (1 / sqrt(data->dynamics_matrix()(i, i))) *
@@ -804,6 +839,7 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
 
   // TODO: might need replace this while loop to a for loop
   // SAP Iteration loop
+  // int iter_recorder = 0;
   for (int iter = 0; iter < max_iteration; iter++) {
     // if (threadIdx.x == 0) {
     //   printf("iter: %d\n", iter);
@@ -814,24 +850,30 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
       // calculate search direction
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
-      // clock_t start_time = clock();
+      clock_t start_time = clock();
       CalcSearchDirection(data, sums + 5 + data->NumVelocities());
-      // clock_t end_time = clock();
-      // int time = (int)(end_time - start_time);
-      // if (threadIdx.x == 0) {
-      //   printf("Time for chol_x: %d\n", time);
-      // }
+      clock_t end_time = clock();
+      int time = (int)(end_time - start_time);
+      if (threadIdx.x == 0) {
+        printf("Time for search direction total: %d\n", time);
+        printf("==============\n");
+      }
 
       // perform line search
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
-      // start_time = clock();
+      start_time = clock();
       double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
-      // end_time = clock();
-      // time = (int)(end_time - start_time);
+
       // if (threadIdx.x == 0) {
-      //   printf("Time for line search: %d\n", time);
+      //   iter_recorder = iter;
       // }
+
+      end_time = clock();
+      time = (int)(end_time - start_time);
+      if (threadIdx.x == 0) {
+        printf("Time for line search total: %d\n", time);
+      }
 
       __syncwarp();
 
@@ -893,6 +935,9 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
       __syncwarp();
     }
   }
+  // if (threadIdx.x == 0)
+  //   printf("num of chol solve and line search call: %d\n", iter_recorder);
+
   // TODO: remove this debugging output
   // if (threadIdx.x == 0) printf("SAP Converged!\n");
   __syncwarp();
@@ -903,8 +948,8 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
 // This function is used in the unit test to perform a complete SAP solve,
 // including search direction calculation and line search
 void SAPGPUData::TestOneStepSapGPU() {
-  std::cout << "TestOneStepSapGPU with GPU called with " << num_problems
-            << " problems" << std::endl;
+  // std::cout << "TestOneStepSapGPU with GPU called with " << num_problems
+  //           << " problems" << std::endl;
 
   // We create two GPU data struct instances for gtest unit test purpose
 
@@ -917,7 +962,7 @@ void SAPGPUData::TestOneStepSapGPU() {
 
   HANDLE_ERROR(cudaDeviceSynchronize());
 
-  std::cout << "finished call" << std::endl;
+  // std::cout << "finished call" << std::endl;
 }
 
 // // This function is used in the unit test to confirm the cost evaluation and

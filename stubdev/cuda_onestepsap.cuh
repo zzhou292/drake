@@ -390,6 +390,12 @@ struct SAPGPUData {
     }
   }
 
+  void RetriveNumActiveContactToCPU(std::vector<int>& num_active_contacts) {
+    num_active_contacts.resize(num_problems);
+    cudaMemcpy(num_active_contacts.data(), num_active_contacts_global,
+               num_problems * sizeof(int), cudaMemcpyDeviceToHost);
+  }
+
   void Initialize(int in_num_contacts, int in_num_velocities,
                   int in_num_problems, CollisionGPUData* gpu_collision_data) {
     num_contacts = in_num_contacts;

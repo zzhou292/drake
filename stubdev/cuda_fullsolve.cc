@@ -22,15 +22,18 @@
 #endif
 #include <iomanip>
 
-void FullSolveSAP::init(Sphere* h_spheres_in, int numProblems_in,
-                        int numSpheres_in, int numContacts_in,
-                        bool writeout_in) {
+void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
+                        int numProblems_in, int numSpheres_in, int numPlanes_in,
+                        int numContacts_in, bool writeout_in) {
   this->h_spheres = h_spheres_in;
+  this->h_planes = h_plane_in;
   this->numProblems = numProblems_in;
   this->numSpheres = numSpheres_in;
+  this->numPlanes = numPlanes_in;
   this->numContacts = numContacts_in;
   this->gpu_collision_data->Initialize(this->h_spheres, this->numProblems,
                                        this->numSpheres);
+  this->gpu_collision_data->InitializePlane(this->h_planes, this->numPlanes);
   this->sap_gpu_data->Initialize(this->numContacts, this->numSpheres * 3,
                                  this->numProblems, this->gpu_collision_data);
   this->writeout = writeout_in;
@@ -51,7 +54,7 @@ void FullSolveSAP::step() {
   gpu_collision_data->Update();
 
   // Run the GPU collision engine
-  gpu_collision_data->CollisionEngine(numProblems, numSpheres);
+  gpu_collision_data->CollisionEngine(numProblems, numSpheres, numPlanes);
   // Run the SAP
   sap_gpu_data->Update();
   sap_gpu_data->TestOneStepSapGPU();
@@ -94,6 +97,19 @@ void FullSolveSAP::step() {
       file.close();
     }
   }
+
+  // print out number of active contacts
+  // std::vector<int> h_active_contacts;
+  // sap_gpu_data->RetriveNumActiveContactToCPU(h_active_contacts);
+  // int avg = 0;
+
+  // for (int i = 0; i < numProblems; i++) {
+  //   avg += h_active_contacts[i];
+  // }
+
+  // std::cout << "Average number of active contacts: " << avg / numProblems
+  //           << std::endl;
+
   iter++;
 }
 

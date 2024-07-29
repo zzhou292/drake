@@ -39,7 +39,7 @@ __device__ CollisionData CheckSphereCollision(const Sphere& a,
 
   dist.normalize();
 
-  if (distSquared <= (radiusSum * radiusSum)) {
+  if (distSquared < (radiusSum * radiusSum)) {
     data.isColliding = true;
     // Calculate collision normal
     data.nhat_BA_W = dist;
@@ -94,13 +94,73 @@ __global__ void DetectSphereCollisions(const Sphere* spheres, int numProblems,
   int p_idx = blockIdx.x;
 
   for (int j = idx; j < numSpheres; j += blockDim.x) {
-    if (j < numSpheres) {
-      for (int k = j + 1; k < numSpheres; k++) {
-        collisionMatrix[(p_idx * numSpheres * numSpheres) + j * numSpheres +
-                        k] =
-            CheckSphereCollision(spheres[p_idx * numSpheres + j],
-                                 spheres[p_idx * numSpheres + k]);
-      }
+    for (int k = j + 1; k < numSpheres; k++) {
+      collisionMatrix[(p_idx * numSpheres * numSpheres) + j * numSpheres + k] =
+          CheckSphereCollision(spheres[p_idx * numSpheres + j],
+                               spheres[p_idx * numSpheres + k]);
+    }
+  }
+  __syncwarp();
+}
+
+// Device function to check Sphere-Sphere collision
+__device__ CollisionData CheckSpherePlaneCollision(const Plane& p,
+                                                   const Sphere& s) {
+  CollisionData data = {
+      false, {0, 0, 0}, {0, 0, 0}, 0, Eigen::Matrix3d::Zero()};
+
+  double distLength = (s.center - p.p1).dot(p.n);
+
+  if (distLength < s.radius) {
+    data.isColliding = true;
+    data.phi0 = -(distLength - s.radius);  // sign convention
+    data.nhat_BA_W = p.n;
+    data.nhat_BA_W.normalize();
+    data.p_WC = s.center - data.nhat_BA_W * data.phi0;
+
+    // Get collision frame matrix
+    // Random vector v is default to {1.0, 1.0, 1.0}
+    // This matrix is normal-dependent
+    Eigen::Vector3d v(1.0, 1.0, 1.0);
+    v.normalize();
+
+    double y_hat_temp = v.dot(data.nhat_BA_W);
+    Eigen::Vector3d y_hat = v - y_hat_temp * data.nhat_BA_W;
+    y_hat.normalize();
+    Eigen::Vector3d x_hat = y_hat.cross(data.nhat_BA_W);
+
+    data.R(0, 0) = x_hat(0);           // x of x-axis
+    data.R(0, 1) = x_hat(1);           // y of x-axis
+    data.R(0, 2) = x_hat(2);           // z of x-axis
+    data.R(1, 0) = y_hat(0);           // x of y-axis
+    data.R(1, 1) = y_hat(1);           // y of y-axis
+    data.R(1, 2) = y_hat(2);           // z of y-axis
+    data.R(2, 0) = data.nhat_BA_W(0);  // x of z-axis
+    data.R(2, 1) = data.nhat_BA_W(1);  // y of z-axis
+    data.R(2, 2) = data.nhat_BA_W(2);  // z of z-axis
+
+    data.vn = -s.velocity.dot(data.nhat_BA_W);  // negative for departing,
+                                                // positive for approaching
+  } else {
+    data.isColliding = false;
+  }
+
+  return data;
+}
+
+__global__ void DetectSpherePlaneCollisions(const Sphere* spheres,
+                                            const Plane* planes,
+                                            int numProblems, int numSpheres,
+                                            int numPlanes,
+                                            CollisionData* collisionMatrix) {
+  int idx = threadIdx.x;
+  int p_idx = blockIdx.x;
+
+  for (int j = idx; j < numSpheres; j += blockDim.x) {
+    for (int k = 0; k < numPlanes; k++) {
+      collisionMatrix[(p_idx * numPlanes * numSpheres) + k * numSpheres + j] =
+          CheckSpherePlaneCollision(planes[p_idx * numPlanes + k],
+                                    spheres[p_idx * numSpheres + j]);
     }
   }
   __syncwarp();
@@ -108,8 +168,9 @@ __global__ void DetectSphereCollisions(const Sphere* spheres, int numProblems,
 
 // Kernel to detect collisions between Spheres
 __global__ void ConstructJacobianGamma(
-    const Sphere* spheres, int numProblems, int numSpheres,
-    CollisionData* collisionMatrix, double* d_jacobian, int* d_num_collisions,
+    const Sphere* spheres, const Plane* planes, int numProblems, int numSpheres,
+    int numPlanes, CollisionData* collisionMatrixSS,
+    CollisionData* collisionMatrixSP, double* d_jacobian, int* d_num_collisions,
     double* d_phi0, double* d_contact_stiffness, double* d_contact_damping) {
   int idx = threadIdx.x;
   int p_idx = blockIdx.x;
@@ -125,49 +186,88 @@ __global__ void ConstructJacobianGamma(
       d_contact_damping + blockIdx.x * numSpheres * numSpheres,
       numSpheres * numSpheres, 1);
 
+  // Construct Jacobian matrix for Sphere-Sphere collision
   for (int j = idx; j < numSpheres; j += blockDim.x) {
-    if (j < numSpheres) {
-      for (int k = j + 1; k < numSpheres; k++) {
-        if (collisionMatrix[(p_idx * numSpheres * numSpheres) + j * numSpheres +
+    for (int k = j + 1; k < numSpheres; k++) {
+      if (collisionMatrixSS[(p_idx * numSpheres * numSpheres) + j * numSpheres +
                             k]
-                .isColliding) {
-          int collision_idx = atomicAdd(&d_num_collisions[p_idx], 1);
+              .isColliding) {
+        int collision_idx = atomicAdd(&d_num_collisions[p_idx], 1);
 
-          // update the harmonic mean of contact stiffness
-          contact_stiffness[collision_idx] =
-              (2 * spheres[p_idx * numSpheres + j].stiffness *
-               spheres[p_idx * numSpheres + k].stiffness) /
-              (spheres[p_idx * numSpheres + j].stiffness +
-               spheres[p_idx * numSpheres + k].stiffness);
+        // update the harmonic mean of contact stiffness
+        contact_stiffness[collision_idx] =
+            (2 * spheres[p_idx * numSpheres + j].stiffness *
+             spheres[p_idx * numSpheres + k].stiffness) /
+            (spheres[p_idx * numSpheres + j].stiffness +
+             spheres[p_idx * numSpheres + k].stiffness);
 
-          // update the harmonic mean of contact damping
-          contact_damping[collision_idx] =
-              (2 * spheres[p_idx * numSpheres + j].damping *
-               spheres[p_idx * numSpheres + k].damping) /
-              (spheres[p_idx * numSpheres + j].damping +
-               spheres[p_idx * numSpheres + k].damping);
-
-          // construct Jacobian matrix
-          full_jacobian.block<3, 3>(collision_idx * 3, j * 3) =
-              collisionMatrix[(p_idx * numSpheres * numSpheres) +
+        // update the harmonic mean of contact damping
+        contact_damping[collision_idx] =
+            (2 * spheres[p_idx * numSpheres + j].damping *
+             spheres[p_idx * numSpheres + k].damping) /
+            (spheres[p_idx * numSpheres + j].damping +
+             spheres[p_idx * numSpheres + k].damping);
+        // construct Jacobian matrix
+        full_jacobian.block<3, 3>(collision_idx * 3, j * 3) =
+            collisionMatrixSS[(p_idx * numSpheres * numSpheres) +
                               j * numSpheres + k]
-                  .R *
-              Eigen::MatrixXd::Identity(3, 3);
-          full_jacobian.block<3, 3>(collision_idx * 3, k * 3) =
-              collisionMatrix[(p_idx * numSpheres * numSpheres) +
+                .R *
+            Eigen::MatrixXd::Identity(3, 3);
+        full_jacobian.block<3, 3>(collision_idx * 3, k * 3) =
+            collisionMatrixSS[(p_idx * numSpheres * numSpheres) +
                               j * numSpheres + k]
-                  .R *
-              -Eigen::MatrixXd::Identity(3, 3);
+                .R *
+            -Eigen::MatrixXd::Identity(3, 3);
 
-          // add data to phi0
-          d_phi0[p_idx * numSpheres * numSpheres + collision_idx] =
-              collisionMatrix[(p_idx * numSpheres * numSpheres) +
+        // add data to phi0
+        d_phi0[p_idx * numSpheres * numSpheres + collision_idx] =
+            collisionMatrixSS[(p_idx * numSpheres * numSpheres) +
                               j * numSpheres + k]
-                  .phi0;
-        }
+                .phi0;
       }
     }
   }
+
+  __syncwarp();
+
+  // Construct Jacobian matrix for Sphere-Plane collision
+  for (int j = idx; j < numSpheres; j += blockDim.x) {
+    for (int k = 0; k < numPlanes; k++) {
+      if (collisionMatrixSP[(p_idx * numSpheres * numPlanes) + k * numSpheres +
+                            j]
+              .isColliding) {
+        int collision_idx = atomicAdd(&d_num_collisions[p_idx], 1);
+
+        // update the harmonic mean of contact stiffness
+        contact_stiffness[collision_idx] =
+            (2 * spheres[p_idx * numSpheres + j].stiffness *
+             planes[p_idx * numPlanes + k].stiffness) /
+            (spheres[p_idx * numSpheres + j].stiffness +
+             planes[p_idx * numPlanes + k].stiffness);
+
+        // update the harmonic mean of contact damping
+        contact_damping[collision_idx] =
+            (2 * spheres[p_idx * numSpheres + j].damping *
+             planes[p_idx * numPlanes + k].damping) /
+            (spheres[p_idx * numSpheres + j].damping +
+             planes[p_idx * numPlanes + k].damping);
+
+        // construct Jacobian matrix
+        full_jacobian.block<3, 3>(collision_idx * 3, j * 3) =
+            collisionMatrixSP[(p_idx * numSpheres * numPlanes) +
+                              k * numSpheres + j]
+                .R *
+            Eigen::MatrixXd::Identity(3, 3);
+
+        // add data to phi0
+        d_phi0[p_idx * numSpheres * numSpheres + collision_idx] =
+            collisionMatrixSP[(p_idx * numSpheres * numPlanes) +
+                              k * numSpheres + j]
+                .phi0;
+      }
+    }
+  }
+
   __syncwarp();
 }
 
@@ -219,7 +319,8 @@ __global__ void CalculateFreeMotionVelocity(const Sphere* spheres,
 }
 
 void CollisionGPUData::CollisionEngine(const int numProblems,
-                                       const int numSpheres) {
+                                       const int numSpheres,
+                                       const int numPlanes) {
   // Kernel launches
   int threadsPerBlock = 32;
   int blocksPerGridSpheres = numProblems;
@@ -228,10 +329,17 @@ void CollisionGPUData::CollisionEngine(const int numProblems,
       this->GetCollisionMatrixPtr());
   HANDLE_ERROR(cudaDeviceSynchronize());
 
+  DetectSpherePlaneCollisions<<<blocksPerGridSpheres, threadsPerBlock>>>(
+      this->GetSpherePtr(), this->GetPlanePtr(), numProblems, numSpheres,
+      num_planes, this->GetCollisionMatrixSpherePlanePtr());
+  HANDLE_ERROR(cudaDeviceSynchronize());
+
   // Construct Jacobian matrix and Gamma vector
+
   ConstructJacobianGamma<<<blocksPerGridSpheres, threadsPerBlock>>>(
-      this->GetSpherePtr(), numProblems, numSpheres,
-      this->GetCollisionMatrixPtr(), this->GetJacobianPtr(),
+      this->GetSpherePtr(), this->GetPlanePtr(), numProblems, numSpheres,
+      numPlanes, this->GetCollisionMatrixPtr(),
+      this->GetCollisionMatrixSpherePlanePtr(), this->GetJacobianPtr(),
       this->GetNumCollisionsPtr(), this->GetPhi0Ptr(),
       this->GetContactStiffnessPtr(), this->GetContactDampingPtr());
   HANDLE_ERROR(cudaDeviceSynchronize());
@@ -290,6 +398,7 @@ void CollisionGPUData::Initialize(Sphere* h_spheres, int m_num_problems,
   // allocate memory
   HANDLE_ERROR(cudaMalloc((void**)&d_spheres,
                           num_problems * num_spheres * sizeof(Sphere)));
+
   HANDLE_ERROR(cudaMalloc(
       (void**)&d_collisionMatrixSpheres,
       num_problems * num_spheres * num_spheres * sizeof(CollisionData)));
@@ -341,6 +450,23 @@ void CollisionGPUData::Initialize(Sphere* h_spheres, int m_num_problems,
                  num_problems * sizeof(double) * num_spheres * num_spheres));
 }
 
+void CollisionGPUData::InitializePlane(Plane* h_planes, int m_num_planes) {
+  // update problem size
+  this->num_planes = m_num_planes;
+
+  // allocte memory for planes
+  HANDLE_ERROR(
+      cudaMalloc((void**)&d_planes, num_problems * num_planes * sizeof(Plane)));
+  HANDLE_ERROR(cudaMalloc(
+      (void**)&d_collisionMatrixSpherePlane,
+      num_problems * num_planes * num_spheres * sizeof(CollisionData)));
+
+  // copy data to device
+  HANDLE_ERROR(cudaMemcpy(d_planes, h_planes,
+                          num_problems * num_planes * sizeof(Plane),
+                          cudaMemcpyHostToDevice));
+}
+
 void CollisionGPUData::Update() {
   // set data to 0
   HANDLE_ERROR(cudaMemset(d_jacobian, 0,
@@ -366,7 +492,9 @@ void CollisionGPUData::Update() {
 
 void CollisionGPUData::Destroy() {
   HANDLE_ERROR(cudaFree(d_spheres));
+  HANDLE_ERROR(cudaFree(d_planes));
   HANDLE_ERROR(cudaFree(d_collisionMatrixSpheres));
+  HANDLE_ERROR(cudaFree(d_collisionMatrixSpherePlane));
   HANDLE_ERROR(cudaFree(d_jacobian));
   HANDLE_ERROR(cudaFree(d_num_collisions));
   HANDLE_ERROR(cudaFree(d_dynamic_matrix));

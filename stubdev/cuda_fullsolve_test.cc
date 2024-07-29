@@ -15,7 +15,8 @@ namespace {
 
 GTEST_TEST(KernelTest, FullSolveTest) {
   int numSpheres = 22;
-  int numProblems = 100;
+  int numPlanes = 4;
+  int numProblems = 1;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec, within a box of size 4x4x4, all
@@ -76,8 +77,7 @@ GTEST_TEST(KernelTest, FullSolveTest) {
 
         double random_angle =
             static_cast<double>(rand()) / RAND_MAX * 2.0 * M_PI;
-        p << 0.0 + 4.5 * cos(random_angle), 3.4641 + 4.5 * sin(random_angle),
-            0.0;
+        p << 0.0 + 3.5 * cos(random_angle), -0.5 + 0.5 * sin(random_angle), 0.0;
 
         // p << 0.0, -2.0, 0.0;
       }
@@ -85,6 +85,8 @@ GTEST_TEST(KernelTest, FullSolveTest) {
       h_spheres[i * numSpheres + j].center = p;
 
       h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d::Zero();
+
+      h_spheres[i * numSpheres + j].mass = 0.05;
 
       if (j == 21) [[unlikely]] {
         // a random aiming point, from (0,0.25) to (0.0,3.5)
@@ -94,28 +96,57 @@ GTEST_TEST(KernelTest, FullSolveTest) {
         direction.normalize();
         // scale up the velocity to 8.0 to 20.0, random
         h_spheres[i * numSpheres + j].velocity =
-            direction * 8.0 +
-            static_cast<double>(rand()) / RAND_MAX * 12.0 * direction;
+            direction * 25.0 +
+            static_cast<double>(rand()) / RAND_MAX * 25.0 * direction;
         // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d(0.0, 5.0,
         // 0.0);
+
+        h_spheres[i * numSpheres + j].mass = 0.5;
       }
 
       h_spheres[i * numSpheres + j].radius = 0.5;
 
       // initialize material properties
-      h_spheres[i * numSpheres + j].stiffness = 200.0;
-      h_spheres[i * numSpheres + j].damping = 0.5;
-      h_spheres[i * numSpheres + j].mass = 0.05;
+      h_spheres[i * numSpheres + j].stiffness = 1000.0;
+      h_spheres[i * numSpheres + j].damping = 1e-15;
+    }
+  }
+
+  Plane* h_planes = new Plane[numProblems * numPlanes];
+  for (int i = 0; i < numProblems; i++) {
+    for (int j = 0; j < numPlanes; j++) {
+      if (j == 0) {
+        h_planes[i * numPlanes + j].p1 << -4.0, 1.0, 0.0;
+        h_planes[i * numPlanes + j].p2 << -4.0, 0.0, 0.0;
+        h_planes[i * numPlanes + j].n << 1.0, 0.0, 0.0;
+      } else if (j == 1) {
+        h_planes[i * numPlanes + j].p1 << 0.0, 5.5, 0.0;
+        h_planes[i * numPlanes + j].p2 << 1.0, 5.5, 0.0;
+        h_planes[i * numPlanes + j].n << 0.0, -1.0, 0.0;
+      } else if (j == 2) {
+        h_planes[i * numPlanes + j].p1 << 4.0, 1.0, 0.0;
+        h_planes[i * numPlanes + j].p2 << 4.0, 0.0, 0.0;
+        h_planes[i * numPlanes + j].n << -1.0, 0.0, 0.0;
+      } else if (j == 3) {
+        h_planes[i * numPlanes + j].p1 << 0.0, -1.5, 0.0;
+        h_planes[i * numPlanes + j].p2 << 1.0, -1.5, 0.0;
+        h_planes[i * numPlanes + j].n << 0.0, 1.0, 0.0;
+      }
+
+      h_planes[i * numPlanes + j].stiffness = 1000.0;
+      h_planes[i * numPlanes + j].damping = 1e-15;
     }
   }
 
   FullSolveSAP solver;
-  solver.init(h_spheres, numProblems, numSpheres, numContacts, false);
+
+  solver.init(h_spheres, h_planes, numProblems, numSpheres, numPlanes,
+              numContacts, false);
 
   // Record the start time
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i = 0; i < 50; i++) {
+  for (int i = 0; i < 4; i++) {
     std::cout << "Step " << i << std::endl;
     solver.step();
   }

@@ -48,8 +48,9 @@ class FullSolveSAP {
     return true;
   }
 
-  void init(Sphere* h_spheres_in, int numProblems_in, int numSpheres_in,
-            int numContacts_in, bool writeout_in);
+  void init(Sphere* h_spheres_in, Plane* h_plane_in, int numProblems_in,
+            int numSpheres_in, int numPlanes_in, int numContacts_in,
+            bool writeout_in);
   void step();
   void destroy();
 
@@ -58,8 +59,10 @@ class FullSolveSAP {
   SAPGPUData* sap_gpu_data;
 
   Sphere* h_spheres;
+  Plane* h_planes;
   int numProblems;
   int numSpheres;
+  int numPlanes;
   int numContacts;
   bool writeout;
   int iter = 0;
