@@ -30,14 +30,13 @@
 __device__ void SAXPY(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
                       const Eigen::Map<Eigen::MatrixXd> B,
                       Eigen::Map<Eigen::MatrixXd> C) {
-  int thread_idx = threadIdx.x;
   int row = A.rows();
   int col = A.cols();
 
   int num_strides = (A.rows() * A.cols() + 31) / 32;
 
   for (int i = 0; i < num_strides; i++) {
-    int cur_idx = i * 32 + thread_idx;
+    int cur_idx = i * 32 + threadIdx.x;
     if (cur_idx >= row * col) continue;
     int cur_col = cur_idx / row;
     int cur_row = cur_idx % row;
@@ -57,12 +56,44 @@ __device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
   int A_col = A.cols();
   int B_col = B.cols();
   int stride = (A_row + 31) / 32;
-  int thread_idx = threadIdx.x;
 
   for (int k = 0; k < B_col; k++) {
     for (int j = 0; j < A_col; j++) {
       for (int i = 0; i < stride; i++) {
-        int row = i * 32 + thread_idx;
+        int row = i * 32 + threadIdx.x;
+        int col = j;
+        if (row < A_row) {
+          if (j == 0) {
+            sums[row] = 0.0;
+          }
+
+          sums[row] += A(row, col) * B(col, k);
+
+          if (col == A_col - 1) {
+            C(row, k) = alpha * sums[row];
+          }
+        }
+      }
+    }
+  }
+}
+
+// Device helper function to calculate alpha*(A*B) = C
+// A and B are const inputs, C is mutable.
+// this mm function applies a row limit
+__device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
+                             const Eigen::Map<Eigen::MatrixXd> B,
+                             Eigen::Map<Eigen::MatrixXd> C, const int rl,
+                             double* sums) {
+  int A_row = rl;
+  int A_col = A.cols();
+  int B_col = B.cols();
+  int stride = (A_row + 31) / 32;
+
+  for (int k = 0; k < B_col; k++) {
+    for (int j = 0; j < A_col; j++) {
+      for (int i = 0; i < stride; i++) {
+        int row = i * 32 + threadIdx.x;
         int col = j;
         if (row < A_row) {
           if (j == 0) {
@@ -160,12 +191,13 @@ __device__ void CalcMomentumCost(SAPGPUData* data, double* sums) {
 // Depends on vc (constraint velocity) already being computed.
 __device__ void UpdateGammaG(SAPGPUData* data) {
   // set all gamma to 0
-  for (int i = threadIdx.x; i < data->NumContacts() * 3; i += blockDim.x) {
+  for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
+       i += blockDim.x) {
     data->gamma_full()(i) = 0.0;
   }
 
   // set all G to 0
-  for (int i = threadIdx.x; i < data->NumContacts(); i += blockDim.x) {
+  for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
     data->G(i).setZero();
   }
 
@@ -174,35 +206,6 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
   for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
        i += blockDim.x) {
     if (i % 3 == 2) {
-      // // compute corresponding v_c
-      // // contact velocity on the z direction in the contact local frame
-      // double v_contact_z = -(data->J().row(i) * data->v_guess())(0, 0);
-      // double phi_0 = data->phi0(int(i / 3))(0, 0);
-
-      // // update each gamma
-      // // first-order approximation of the penetration
-      // // max(0.0, phi_0 + dt * v_contact_z)
-      // double pen_approx = phi_0 + dt * v_contact_z;
-      // if (pen_approx <= 0.0) pen_approx = 0.0;
-
-      // double damping_term =
-      //     1.0 + data->contact_damping(int(i / 3))(0, 0) * v_contact_z;
-      // if (damping_term <= 0.0) damping_term = 0.0;
-
-      // data->gamma(int(i / 3))(2) = dt *
-      //                              data->contact_stiffness(int(i / 3))(0, 0)
-      //                              * pen_approx * damping_term;
-
-      // // update each G
-      // // impulse gradiant
-      // double np =
-      //     -dt *
-      //     ((data->contact_stiffness(int(i / 3))(0, 0) * dt * damping_term) +
-      //      data->contact_damping(int(i / 3))(0, 0) *
-      //          data->contact_stiffness(int(i / 3))(0, 0) * pen_approx);
-      // // assign -np to G(2,2)
-      // data->G(int(i / 3))(2, 2) = -np;
-
       double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
       double k = data->contact_stiffness(int(i / 3))(0, 0);
       double d = data->contact_damping(int(i / 3))(0, 0);
@@ -577,7 +580,8 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   __syncwarp();
 
-  MMultiply(1.0, data->J(), data->chol_x(), delta_v_c, sums);
+  MMultiply_RL(1.0, data->J(), data->chol_x(), delta_v_c,
+               data->num_active_contacts() * 3, sums);
   MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
 
   // evaluate the cost function at l_alpha and r_alpha
@@ -609,11 +613,11 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // we evaluate fguess the last as cache will be left in the global memory
   // TODO: Update G and gamma
-  // clock_t start = clock();
+  // start = clock();
   SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                         v_guess_prev);
-  // clock_t end = clock();
-  // int time = (int)(end - start);
+  // end = clock();
+  // time = (int)(end - start);
   // if (thread_idx == 0) {
   //   printf("Time for SAPLineSearchEvalCost(in Line Search): %d\n", time);
   // }
@@ -960,7 +964,7 @@ void SAPGPUData::TestOneStepSapGPU() {
   // unit test: check for complete solve without constraint
   // the expected result shall converge to free motion velocity v_star
   SolveWithGuessKernel<<<num_problems, threadsPerBlock,
-                         4096 * sizeof(double)>>>(d_sap_gpu_data_solve);
+                         2048 * sizeof(double)>>>(d_sap_gpu_data_solve);
 
   HANDLE_ERROR(cudaDeviceSynchronize());
 
