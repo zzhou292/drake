@@ -16,7 +16,7 @@ namespace {
 GTEST_TEST(KernelTest, FullSolveTest) {
   int numSpheres = 22;
   int numPlanes = 4;
-  int numProblems = 1;
+  int numProblems = 100;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec, within a box of size 4x4x4, all
@@ -141,12 +141,12 @@ GTEST_TEST(KernelTest, FullSolveTest) {
   FullSolveSAP solver;
 
   solver.init(h_spheres, h_planes, numProblems, numSpheres, numPlanes,
-              numContacts, false);
+              numContacts, true);
 
   // Record the start time
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 400; i++) {
     std::cout << "Step " << i << std::endl;
     solver.step();
   }

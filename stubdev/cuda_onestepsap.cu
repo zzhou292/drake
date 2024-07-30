@@ -265,33 +265,33 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   int num_velocities = data->NumVelocities();
   int num_active_contacts = data->num_active_contacts();
 
-  clock_t start = clock();
+  // clock_t start = clock();
   UpdateGammaG(data);
-  clock_t end = clock();
-  int time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for UpdateGammaG (in search dir): %d\n", time);
-  }
+  // clock_t end = clock();
+  // int time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for UpdateGammaG (in search dir): %d\n", time);
+  // }
 
-  start = clock();
+  // start = clock();
   // Calculate Momentum Cost
   CalcMomentumCost(data, sums);
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for CalcMomentumCost (in search dir): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalcMomentumCost (in search dir): %d\n", time);
+  // }
 
-  start = clock();
+  // start = clock();
   // Calculate Constraint Cost
   CalcConstraintCost(data);
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for CalcConstraintCost (in search dir): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalcConstraintCost (in search dir): %d\n", time);
+  // }
 
-  start = clock();
+  // start = clock();
   // Calculate and assemble Hessian
   // Calculate G*J
   for (int i = threadIdx.x; i < num_active_contacts; i += blockDim.x) {
@@ -311,22 +311,22 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for CalculateHessian GJ (in search dir): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalculateHessian GJ (in search dir): %d\n", time);
+  // }
 
-  start = clock();
+  // start = clock();
   CalculateHessian(data);
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for CalculateHessian (in search dir): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for CalculateHessian (in search dir): %d\n", time);
+  // }
 
   // Calculate negative gradient
-  start = clock();
+  // start = clock();
   for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
     double sum = 0.0;
     for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
@@ -337,14 +337,15 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for Calculate negative gradient(in search dir): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Calculate negative gradient(in search dir): %d\n",
+  //   time);
+  // }
 
   // Cholesky Factorization and Solve for search direction
-  start = clock();
+  // start = clock();
   int num_stride = (num_velocities + 31) / 32;
 
   Eigen::Map<Eigen::MatrixXd> d_M = data->H();
@@ -363,27 +364,28 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
                             num_stride);
   __syncwarp();
 
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for Cholesky Factorization and Solve (in search dir):: %d\n",
-           time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Cholesky Factorization and Solve (in search dir)::
+  //   %d\n",
+  //          time);
+  // }
 
   // Calculate the dl_dalpha0 for each problem
   // dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
   // also -neg_grad.dot(chol_x)
 
-  start = clock();
+  // start = clock();
   CalculateDlDalpha0(data, sums);
 
   __syncwarp();
 
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for Calculate dl_dalpha0 (in search dir):: %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for Calculate dl_dalpha0 (in search dir):: %d\n", time);
+  // }
 }
 
 // Device function to evaluate the cost function at alpha
@@ -607,33 +609,33 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // we evaluate fguess the last as cache will be left in the global memory
   // TODO: Update G and gamma
-  clock_t start = clock();
+  // clock_t start = clock();
   SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                         v_guess_prev);
-  clock_t end = clock();
-  int time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for SAPLineSearchEvalCost(in Line Search): %d\n", time);
-  }
+  // clock_t end = clock();
+  // int time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for SAPLineSearchEvalCost(in Line Search): %d\n", time);
+  // }
   // ==========================
-  start = clock();
+  // start = clock();
   SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                        delta_v_c, delta_p);
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for SAPLineSearchEvalDer(in Line Search): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for SAPLineSearchEvalDer(in Line Search): %d\n", time);
+  // }
   // ================================
-  start = clock();
+  // start = clock();
   // evaluate the second derivative of mid_alpha
   SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums, v_alpha,
                         delta_v_c, delta_p);
-  end = clock();
-  time = (int)(end - start);
-  if (thread_idx == 0) {
-    printf("Time for SAPLineSearchEval2Der(in Line Search): %d\n", time);
-  }
+  // end = clock();
+  // time = (int)(end - start);
+  // if (thread_idx == 0) {
+  //   printf("Time for SAPLineSearchEval2Der(in Line Search): %d\n", time);
+  // }
 
   // TODO: replace this while loop to a for loop
   // SAP line search loop
@@ -850,30 +852,30 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data) {
       // calculate search direction
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
-      clock_t start_time = clock();
+      // clock_t start_time = clock();
       CalcSearchDirection(data, sums + 5 + data->NumVelocities());
-      clock_t end_time = clock();
-      int time = (int)(end_time - start_time);
-      if (threadIdx.x == 0) {
-        printf("Time for search direction total: %d\n", time);
-        printf("==============\n");
-      }
+      // clock_t end_time = clock();
+      // int time = (int)(end_time - start_time);
+      // if (threadIdx.x == 0) {
+      //   printf("Time for search direction total: %d\n", time);
+      //   printf("==============\n");
+      // }
 
       // perform line search
       // we add offset to shared memory to avoid SoveWithGuessImplKernel
       // __shared__ varibales being overwritten
-      start_time = clock();
+      // start_time = clock();
       double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
 
       // if (threadIdx.x == 0) {
       //   iter_recorder = iter;
       // }
 
-      end_time = clock();
-      time = (int)(end_time - start_time);
-      if (threadIdx.x == 0) {
-        printf("Time for line search total: %d\n", time);
-      }
+      // end_time = clock();
+      // time = (int)(end_time - start_time);
+      // if (threadIdx.x == 0) {
+      //   printf("Time for line search total: %d\n", time);
+      // }
 
       __syncwarp();
 
