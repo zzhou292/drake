@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuda_gpu_collision.h"
+#include "cuda_gpu_collision.cuh"
 #include "cuda_onestepsap.h"
 
 #ifndef HANDLE_ERROR_MACRO
@@ -321,13 +321,9 @@ struct SAPGPUData {
     return num_active_contacts_global[blockIdx.x];
   }
 
-  __device__ double l_alpha() { return l_alpha_global[blockIdx.x]; }
-
-  __device__ const double l_alpha() const { return l_alpha_global[blockIdx.x]; }
-
-  __device__ double r_alpha() { return r_alpha_global[blockIdx.x]; }
-
-  __device__ const double r_alpha() const { return r_alpha_global[blockIdx.x]; }
+  __device__ CollisionGPUData* get_collision_gpu_data() {
+    return d_collision_gpu_data;
+  };
 
   __host__ __device__ const int NumVelocities() const { return num_velocities; }
   __host__ __device__ const int NumContacts() const { return num_contacts; }
@@ -433,11 +429,6 @@ struct SAPGPUData {
     HANDLE_ERROR(cudaMalloc(&chol_x_global,
                             num_problems * num_velocities * sizeof(double)));
 
-    HANDLE_ERROR(cudaMalloc(&dl_eval_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&dll_eval_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&l_alpha_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&r_alpha_global, num_problems * sizeof(double)));
-
     // retrieve data from the gpu_collision_data
     A_global = gpu_collision_data->GetDynamicMatrixPtr();
     v_star_global = gpu_collision_data->GetVStarPtr();
@@ -448,31 +439,12 @@ struct SAPGPUData {
     contact_damping_global = gpu_collision_data->GetContactDampingPtr();
     num_active_contacts_global = gpu_collision_data->GetNumCollisionsPtr();
 
+    d_collision_gpu_data = gpu_collision_data->GetCollisionGPUDataPtr();
+
     // copy struct to device
     HANDLE_ERROR(cudaMalloc(&d_sap_gpu_data_solve, sizeof(SAPGPUData)));
     HANDLE_ERROR(cudaMemcpy(d_sap_gpu_data_solve, this, sizeof(SAPGPUData),
                             cudaMemcpyHostToDevice));
-  }
-
-  void Update() {
-    // Set data to initialized value using cudaMemset
-    HANDLE_ERROR(cudaMemset(
-        chol_L_global, 0,
-        num_problems * num_velocities * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(chol_y_global, 0,
-                            num_problems * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(chol_x_global, 0,
-                            num_problems * num_velocities * sizeof(double)));
-
-    // Initialize line search parameters, reconsider the necessity
-    HANDLE_ERROR(cudaMemset(dl_eval_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(dll_eval_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(l_alpha_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(r_alpha_global, 0, num_problems * sizeof(double)));
-
-    // reset gamma_full to 0
-    HANDLE_ERROR(cudaMemset(gamma_global, 0,
-                            num_problems * num_contacts * 3 * sizeof(double)));
   }
 
   // Free memory
@@ -498,13 +470,13 @@ struct SAPGPUData {
     HANDLE_ERROR(cudaFree(chol_L_global));
     HANDLE_ERROR(cudaFree(chol_y_global));
     HANDLE_ERROR(cudaFree(chol_x_global));
-    HANDLE_ERROR(cudaFree(dl_eval_global));
-    HANDLE_ERROR(cudaFree(dll_eval_global));
-    HANDLE_ERROR(cudaFree(l_alpha_global));
-    HANDLE_ERROR(cudaFree(r_alpha_global));
+    // HANDLE_ERROR(cudaFree(dl_eval_global));
+    // HANDLE_ERROR(cudaFree(dll_eval_global));
+    // HANDLE_ERROR(cudaFree(l_alpha_global));
+    // HANDLE_ERROR(cudaFree(r_alpha_global));
   }
 
-  void TestOneStepSapGPU();
+  void TestOneStepSapGPU(int num_steps = 1);
 
  private:
   double* A_global;        // Global memory dynamics matrix A for all sims
@@ -548,19 +520,8 @@ struct SAPGPUData {
   int num_problems;    // Number of problems
   int num_velocities;  // Number of velocities
 
-  // Line search related variables
-  double* dl_eval_global;   // Global memory to evaluate dl/dalpha, this also
-                            // serves as a scratch space during the line search
-  double* dll_eval_global;  // Global memory to evaluate dl2/dalpha2, this also
-                            // serves as a scratch space during the line search
-  double*
-      l_alpha_global;  // Global memory to hold left alpha for line search this
-                       // also serves as a scratch space during the line search
-  double*
-      r_alpha_global;  // Global memory to hold right alpha for line search this
-                       // also serves as a scratch space during the line search
-
-  SAPGPUData* d_sap_gpu_data_solve;  // Storing GPU copy of SAPGPUData
+  SAPGPUData* d_sap_gpu_data_solve;        // Storing GPU copy of SAPGPUData
+  CollisionGPUData* d_collision_gpu_data;  // Storing GPU copy of SAPGPUData
 };
 
 // ===========================================================================

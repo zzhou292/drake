@@ -55,25 +55,15 @@ __device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
   int A_row = A.rows();
   int A_col = A.cols();
   int B_col = B.cols();
-  int stride = (A_row + 31) / 32;
 
-  for (int k = 0; k < B_col; k++) {
-    for (int j = 0; j < A_col; j++) {
-      for (int i = 0; i < stride; i++) {
-        int row = i * 32 + threadIdx.x;
-        int col = j;
-        if (row < A_row) {
-          if (j == 0) {
-            sums[row] = 0.0;
-          }
-
-          sums[row] += A(row, col) * B(col, k);
-
-          if (col == A_col - 1) {
-            C(row, k) = alpha * sums[row];
-          }
-        }
+  for (int i = threadIdx.x; i < A_row; i += blockDim.x) {
+    for (int j = 0; j < B_col; j++) {
+      for (int k = 0; k < A_col; k++) {
+        if (k == 0) sums[threadIdx.x] = 0.0;
+        sums[threadIdx.x] += A(i, k) * B(k, j);
+        if (k == A_col - 1) C(i, j) = alpha * sums[threadIdx.x];
       }
+      C(i, j) = alpha * sums[threadIdx.x];
     }
   }
 }
@@ -88,25 +78,15 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
   int A_row = rl;
   int A_col = A.cols();
   int B_col = B.cols();
-  int stride = (A_row + 31) / 32;
 
-  for (int k = 0; k < B_col; k++) {
-    for (int j = 0; j < A_col; j++) {
-      for (int i = 0; i < stride; i++) {
-        int row = i * 32 + threadIdx.x;
-        int col = j;
-        if (row < A_row) {
-          if (j == 0) {
-            sums[row] = 0.0;
-          }
-
-          sums[row] += A(row, col) * B(col, k);
-
-          if (col == A_col - 1) {
-            C(row, k) = alpha * sums[row];
-          }
-        }
+  for (int i = threadIdx.x; i < A_row; i += blockDim.x) {
+    for (int j = 0; j < B_col; j++) {
+      for (int k = 0; k < A_col; k++) {
+        if (k == 0) sums[threadIdx.x] = 0.0;
+        sums[threadIdx.x] += A(i, k) * B(k, j);
+        if (k == A_col - 1) C(i, j) = alpha * sums[threadIdx.x];
       }
+      C(i, j) = alpha * sums[threadIdx.x];
     }
   }
 }
@@ -190,6 +170,7 @@ __device__ void CalcMomentumCost(SAPGPUData* data, double* sums) {
 
 // Depends on vc (constraint velocity) already being computed.
 __device__ void UpdateGammaG(SAPGPUData* data) {
+  // TODO: this is a trick we play, reset only the value we need to update
   // set all gamma to 0
   for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
        i += blockDim.x) {
@@ -240,7 +221,7 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
   __syncwarp();
 }
 
-__device__ void CalculateDlDalpha0(SAPGPUData* data, double* sums) {
+__device__ void CalculateDlDalpha0(SAPGPUData* data) {
   double sum = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     sum += (-data->neg_grad()(i, 0)) * data->chol_x()(i, 0);
@@ -268,33 +249,28 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   int num_velocities = data->NumVelocities();
   int num_active_contacts = data->num_active_contacts();
 
-  // clock_t start = clock();
-  UpdateGammaG(data);
-  // clock_t end = clock();
-  // int time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for UpdateGammaG (in search dir): %d\n", time);
-  // }
+  // variable initialization and updates
+  // set chol_L, chol_y, chol_x to 0
+  for (int i = threadIdx.x; i < num_velocities * num_velocities;
+       i += blockDim.x) {
+    data->chol_L()(i / num_velocities, i % num_velocities) = 0.0;
+  }
 
-  // start = clock();
+  for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
+    data->chol_y()(i, 0) = 0.0;
+    data->chol_x()(i, 0) = 0.0;
+  }
+
+  __syncwarp();
+
+  UpdateGammaG(data);
+
   // Calculate Momentum Cost
   CalcMomentumCost(data, sums);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalcMomentumCost (in search dir): %d\n", time);
-  // }
 
-  // start = clock();
   // Calculate Constraint Cost
   CalcConstraintCost(data);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalcConstraintCost (in search dir): %d\n", time);
-  // }
 
-  // start = clock();
   // Calculate and assemble Hessian
   // Calculate G*J
   for (int i = threadIdx.x; i < num_active_contacts; i += blockDim.x) {
@@ -314,22 +290,9 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalculateHessian GJ (in search dir): %d\n", time);
-  // }
-
-  // start = clock();
   CalculateHessian(data);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for CalculateHessian (in search dir): %d\n", time);
-  // }
 
   // Calculate negative gradient
-  // start = clock();
   for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
     double sum = 0.0;
     for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
@@ -340,15 +303,7 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Calculate negative gradient(in search dir): %d\n",
-  //   time);
-  // }
-
   // Cholesky Factorization and Solve for search direction
-  // start = clock();
   int num_stride = (num_velocities + 31) / 32;
 
   Eigen::Map<Eigen::MatrixXd> d_M = data->H();
@@ -367,28 +322,13 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
                             num_stride);
   __syncwarp();
 
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Cholesky Factorization and Solve (in search dir)::
-  //   %d\n",
-  //          time);
-  // }
-
   // Calculate the dl_dalpha0 for each problem
   // dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
   // also -neg_grad.dot(chol_x)
 
-  // start = clock();
-  CalculateDlDalpha0(data, sums);
+  CalculateDlDalpha0(data);
 
   __syncwarp();
-
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for Calculate dl_dalpha0 (in search dir):: %d\n", time);
-  // }
 }
 
 // Device function to evaluate the cost function at alpha
@@ -531,20 +471,20 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
   int thread_idx = threadIdx.x;
 
   double* sums = buff + buff_arr_offset + 3 * data->NumVelocities() +
-                 3 * data->NumContacts();
+                 3 * data->num_active_contacts();
 
   Eigen::Map<Eigen::MatrixXd> v_alpha(buff + buff_arr_offset,
                                       data->NumVelocities(), 1);
   Eigen::Map<Eigen::MatrixXd> delta_v_c(
       buff + buff_arr_offset + 1 * data->NumVelocities(),
-      3 * data->NumContacts(), 1);
+      3 * data->num_active_contacts(), 1);
   Eigen::Map<Eigen::MatrixXd> delta_p(buff + buff_arr_offset +
                                           1 * data->NumVelocities() +
-                                          3 * data->NumContacts(),
+                                          3 * data->num_active_contacts(),
                                       data->NumVelocities(), 1);
   Eigen::Map<Eigen::MatrixXd> v_guess_prev(buff + buff_arr_offset +
                                                2 * data->NumVelocities() +
-                                               3 * data->NumContacts(),
+                                               3 * data->num_active_contacts(),
                                            data->NumVelocities(), 1);
 
   double& alpha_l = buff[0];      // alpha left bound
@@ -613,33 +553,15 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // we evaluate fguess the last as cache will be left in the global memory
   // TODO: Update G and gamma
-  // start = clock();
   SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
                         v_guess_prev);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for SAPLineSearchEvalCost(in Line Search): %d\n", time);
-  // }
-  // ==========================
-  // start = clock();
+
   SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
                        delta_v_c, delta_p);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for SAPLineSearchEvalDer(in Line Search): %d\n", time);
-  // }
-  // ================================
-  // start = clock();
+
   // evaluate the second derivative of mid_alpha
   SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums, v_alpha,
                         delta_v_c, delta_p);
-  // end = clock();
-  // time = (int)(end - start);
-  // if (thread_idx == 0) {
-  //   printf("Time for SAPLineSearchEval2Der(in Line Search): %d\n", time);
-  // }
 
   // TODO: replace this while loop to a for loop
   // SAP line search loop
@@ -658,10 +580,6 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
           first_iter = 0.0;
         }
 
-        // TODO: remove this debugging output
-        // printf("l_alpha: %f, r_alpha: %f, guess: %f, d_guess: %f \n",
-        // l_alpha,
-        //        r_alpha, guess_alpha, d_guess);
         if (newton_is_slow) {
           // printf("do bisec, newton is slow\n");
           dx_negative = 0.5 * (alpha_l - alpha_r);
@@ -680,9 +598,6 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       }
 
       __syncwarp();
-
-      // if (threadIdx.x == 0) line_search_iter_recorder++;
-      // __syncwarp();
 
       // we evaluate fguess the last as cache will be left in the global
       // memory
@@ -729,8 +644,6 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       __syncwarp();
     }
   }
-  // if (threadIdx.x == 0)
-  //   printf("Line search iteration: %d\n", line_search_iter_recorder);
 
   return alpha_guess;
 }
@@ -812,6 +725,26 @@ __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
   __syncwarp();
 }
 
+__device__ void IntegrateExplicitEulerKernel(Sphere* spheres, int numProblems,
+                                             int numSpheres,
+                                             double* d_velocity_vector) {
+  int idx = threadIdx.x;
+  int p_idx = blockIdx.x;
+
+  Eigen::Map<Eigen::VectorXd> velocity_vector(
+      d_velocity_vector + blockIdx.x * numSpheres * 3, numSpheres * 3, 1);
+
+  for (int j = idx; j < numSpheres; j += blockDim.x) {
+    spheres[p_idx * numSpheres + j].velocity =
+        velocity_vector.block<3, 1>(j * 3, 0);
+    spheres[p_idx * numSpheres + j].center =
+        spheres[p_idx * numSpheres + j].center +
+        dt * velocity_vector.block<3, 1>(j * 3, 0);
+  }
+
+  __syncwarp();
+}
+
 // ========================================================================
 // Kernels
 // ========================================================================
@@ -822,153 +755,125 @@ __global__ void SolveSearchDirectionKernel(SAPGPUData* data) {
   CalcSearchDirection(data, sums);
 }
 
-__global__ void SolveWithGuessKernel(SAPGPUData* data) {
+__global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
   extern __shared__ double sums[];
 
-  // SAP Iteration flag
-  double& flag = sums[0];
-  double& first_iter = sums[1];
-  double& momentum_residue = sums[2];
-  double& momentum_scale = sums[3];
-  double& ell_previous = sums[4];
+  for (int i = 0; i < num_steps; i++) {
+    // collision engine run
+    OneStepCollision(data->get_collision_gpu_data());
 
-  Eigen::Map<Eigen::MatrixXd> prev_v_guess(
-      sums + 5, data->NumVelocities(),
-      1);  // previous v_guess, used for termination logic
+    __syncwarp();
 
-  if (threadIdx.x == 0) {
-    flag = 1.0;  // thread 0 initializes the flag
-    first_iter = 1.0;
-  }
+    // SAP Iteration flag
+    double& flag = sums[0];
+    double& first_iter = sums[1];
+    double& momentum_residue = sums[2];
+    double& momentum_scale = sums[3];
+    double& ell_previous = sums[4];
 
-  __syncwarp();
+    Eigen::Map<Eigen::MatrixXd> prev_v_guess(
+        sums + 5, data->NumVelocities(),
+        1);  // previous v_guess, used for termination logic
 
-  // TODO: might need replace this while loop to a for loop
-  // SAP Iteration loop
-  // int iter_recorder = 0;
-  for (int iter = 0; iter < max_iteration; iter++) {
-    // if (threadIdx.x == 0) {
-    //   printf("iter: %d\n", iter);
-    // }
-    if (flag == 0.0) break;
-
-    if (flag == 1.0) {
-      // calculate search direction
-      // we add offset to shared memory to avoid SoveWithGuessImplKernel
-      // __shared__ varibales being overwritten
-      // clock_t start_time = clock();
-      CalcSearchDirection(data, sums + 5 + data->NumVelocities());
-      // clock_t end_time = clock();
-      // int time = (int)(end_time - start_time);
-      // if (threadIdx.x == 0) {
-      //   printf("Time for search direction total: %d\n", time);
-      //   printf("==============\n");
-      // }
-
-      // perform line search
-      // we add offset to shared memory to avoid SoveWithGuessImplKernel
-      // __shared__ varibales being overwritten
-      // start_time = clock();
-      double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
-
-      // if (threadIdx.x == 0) {
-      //   iter_recorder = iter;
-      // }
-
-      // end_time = clock();
-      // time = (int)(end_time - start_time);
-      // if (threadIdx.x == 0) {
-      //   printf("Time for line search total: %d\n", time);
-      // }
-
-      __syncwarp();
-
-      // calculate momentum residule and momentum scale
-      CalcStoppingCriteriaResidual(data, momentum_residue, momentum_scale);
-
-      // if (threadIdx.x == 0) {
-      //   printf("momentum_residue: %.30f, rhs: %.30f\n", momentum_residue,
-      //          abs_tolerance + rel_tolerance * momentum_scale);
-      // }
-
-      // Thread 0 registers first results or check residual if the current
-      // iteration is not 0, if necessary, continue
-      if (threadIdx.x == 0) {
-        if (first_iter == 1.0) {
-          first_iter = 0.0;
-        } else {
-          if (momentum_residue <=
-              abs_tolerance + rel_tolerance * momentum_scale) {
-            flag = 0.0;
-            // printf("OUTER LOOP TERMINATE - momentum residue\n");
-          }
-
-          // cost criteria check
-          double ell = data->momentum_cost()(0, 0) +
-                       data->constraint_cost()(0, 0);  // current cost
-          double ell_scale = 0.5 * (abs(ell) + abs(ell_previous));
-          double ell_decrement = abs(ell_previous - ell);
-          // printf("ell_decrement %.30f, rhs: %.30f\n", ell_decrement,
-          //        cost_abs_tolerance + cost_rel_tolerance * ell_scale);
-          // printf("ell_decrement %.30f, rhs: %.30f alpha: %.30f\n",
-          //        ell_decrement,
-          //        cost_abs_tolerance + cost_rel_tolerance * ell_scale, alpha);
-          // printf(
-          //     "momentum_cost: %.30f, constraint_cost: %.30f, total cost: "
-          //     "%.30f\n",
-          //     data->momentum_cost()(0, 0), data->constraint_cost()(0, 0),
-          //     data->momentum_cost()(0, 0) + data->constraint_cost()(0, 0));
-          if (ell_decrement <
-                  cost_abs_tolerance + cost_rel_tolerance * ell_scale &&
-              alpha > 0.5) {
-            flag = 0.0;
-            // printf("OUTER LOOP TERMINATE - cost criteria\n");
-          }
-        }
-
-        ell_previous =
-            data->momentum_cost()(0, 0) + data->constraint_cost()(0, 0);
-
-        // assign previous
-        for (int i = 0; i < data->NumVelocities(); i++) {
-          prev_v_guess(i, 0) = data->v_guess()(i, 0);
-        }
-
-        // printf("this is a step of cholsolve\n");
-        // printf("alpha at this step is %f\n", alpha);
-      }
-
-      __syncwarp();
+    if (threadIdx.x == 0) {
+      flag = 1.0;  // thread 0 initializes the flag
+      first_iter = 1.0;
     }
-  }
-  // if (threadIdx.x == 0)
-  //   printf("num of chol solve and line search call: %d\n", iter_recorder);
 
-  // TODO: remove this debugging output
-  // if (threadIdx.x == 0) printf("SAP Converged!\n");
-  __syncwarp();
+    __syncwarp();
+
+    // TODO: might need replace this while loop to a for loop
+    // SAP Iteration loop
+    // int iter_recorder = 0;
+    for (int iter = 0; iter < max_iteration; iter++) {
+      // if (threadIdx.x == 0) {
+      //   printf("iter: %d\n", iter);
+      // }
+      if (flag == 0.0) break;
+
+      if (flag == 1.0) {
+        // calculate search direction
+        // we add offset to shared memory to avoid SoveWithGuessImplKernel
+        // __shared__ varibales being overwritten
+        CalcSearchDirection(data, sums + 5 + data->NumVelocities());
+
+        // perform line search
+        // we add offset to shared memory to avoid SoveWithGuessImplKernel
+        // __shared__ varibales being overwritten
+        double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
+
+        __syncwarp();
+
+        // calculate momentum residule and momentum scale
+        CalcStoppingCriteriaResidual(data, momentum_residue, momentum_scale);
+
+        // Thread 0 registers first results or check residual if the current
+        // iteration is not 0, if necessary, continue
+        if (threadIdx.x == 0) {
+          if (first_iter == 1.0) {
+            first_iter = 0.0;
+          } else {
+            if (momentum_residue <=
+                abs_tolerance + rel_tolerance * momentum_scale) {
+              flag = 0.0;
+              // printf("OUTER LOOP TERMINATE - momentum residue\n");
+            }
+
+            // cost criteria check
+            double ell = data->momentum_cost()(0, 0) +
+                         data->constraint_cost()(0, 0);  // current cost
+            double ell_scale = 0.5 * (abs(ell) + abs(ell_previous));
+            double ell_decrement = abs(ell_previous - ell);
+
+            if (ell_decrement <
+                    cost_abs_tolerance + cost_rel_tolerance * ell_scale &&
+                alpha > 0.5) {
+              flag = 0.0;
+              // printf("OUTER LOOP TERMINATE - cost criteria\n");
+            }
+          }
+
+          ell_previous =
+              data->momentum_cost()(0, 0) + data->constraint_cost()(0, 0);
+
+          // assign previous
+          for (int i = 0; i < data->NumVelocities(); i++) {
+            prev_v_guess(i, 0) = data->v_guess()(i, 0);
+          }
+
+          // printf("this is a step of cholsolve\n");
+        }
+
+        __syncwarp();
+      }
+    }
+
+    __syncwarp();
+
+    IntegrateExplicitEulerKernel(
+        data->get_collision_gpu_data()->get_spheres(), data->NumProblems(),
+        data->get_collision_gpu_data()->get_num_spheres(),
+        data->get_collision_gpu_data()->get_velocity_vector());
+
+    __syncwarp();
+  }
 }
 
 // ==========================================================================
 // Driver Functions
 // This function is used in the unit test to perform a complete SAP solve,
 // including search direction calculation and line search
-void SAPGPUData::TestOneStepSapGPU() {
-  // std::cout << "TestOneStepSapGPU with GPU called with " << num_problems
-  //           << " problems" << std::endl;
-
+void SAPGPUData::TestOneStepSapGPU(int num_steps) {
   // We create two GPU data struct instances for gtest unit test purpose
 
   int threadsPerBlock = 32;
 
   // unit test: check for complete solve without constraint
   // the expected result shall converge to free motion velocity v_star
-  SolveWithGuessKernel<<<num_problems, threadsPerBlock,
-                         2048 * sizeof(double)>>>(d_sap_gpu_data_solve);
+  SolveWithGuessKernel<<<num_problems, threadsPerBlock, 400 * sizeof(double)>>>(
+      d_sap_gpu_data_solve, num_steps);
 
   HANDLE_ERROR(cudaDeviceSynchronize());
-
-  // std::cout << "finished call" << std::endl;
 }
 
 // // This function is used in the unit test to confirm the cost evaluation and

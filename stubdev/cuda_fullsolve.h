@@ -9,7 +9,7 @@
 #include <iostream>
 #include <vector>
 
-#include "cuda_gpu_collision.h"
+#include "cuda_gpu_collision.cuh"
 #include "cuda_onestepsap.cuh"
 #include "cuda_onestepsap.h"
 
@@ -51,7 +51,7 @@ class FullSolveSAP {
   void init(Sphere* h_spheres_in, Plane* h_plane_in, int numProblems_in,
             int numSpheres_in, int numPlanes_in, int numContacts_in,
             bool writeout_in);
-  void step();
+  void step(int num_steps);
   void destroy();
 
  private:
@@ -67,5 +67,5 @@ class FullSolveSAP {
   bool writeout;
   int iter = 0;
 
-  std::string base_foldername = "/home/jsonzhou/Desktop/drake/output";
+  std::string base_foldername = "/home/jsonzhou/Desktop/my_fork/drake/output";
 };

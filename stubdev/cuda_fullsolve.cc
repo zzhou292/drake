@@ -9,7 +9,7 @@
 #include <iostream>
 #include <vector>
 
-#include "cuda_gpu_collision.h"
+#include "cuda_gpu_collision.cuh"
 #include "cuda_onestepsap.cuh"
 #include "cuda_onestepsap.h"
 
@@ -34,6 +34,7 @@ void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
   this->gpu_collision_data->Initialize(this->h_spheres, this->numProblems,
                                        this->numSpheres);
   this->gpu_collision_data->InitializePlane(this->h_planes, this->numPlanes);
+  this->gpu_collision_data->CopyStructToGPU();
   this->sap_gpu_data->Initialize(this->numContacts, this->numSpheres * 3,
                                  this->numProblems, this->gpu_collision_data);
   this->writeout = writeout_in;
@@ -50,15 +51,53 @@ void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
               << std::endl;
   }
 }
-void FullSolveSAP::step() {
-  gpu_collision_data->Update();
+void FullSolveSAP::step(int num_steps) {
+  if (iter == 0) {
+    if (writeout) {
+      gpu_collision_data->RetieveSphereDataToCPU(h_spheres);
+      for (int i = 0; i < numProblems; i++) {
+        // Create and open the file
+        std::ostringstream iterStream;
+        iterStream << "output_" << std::setw(4) << std::setfill('0') << iter;
+        std::string filename = base_foldername + "/problem_" +
+                               std::to_string(i) + "/" + iterStream.str() +
+                               ".csv";
 
-  // Run the GPU collision engine
-  gpu_collision_data->CollisionEngine(numProblems, numSpheres, numPlanes);
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+          std::cerr << "Failed to open file: " << filename << std::endl;
+          return;
+        }
+
+        // Write column titles to the file
+        file << "pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,vel_magnitude"
+             << std::endl;
+
+        // Write data to the file
+        for (int j = 0; j < numSpheres; j++) {
+          double vel_magnitude =
+              std::sqrt(std::pow(h_spheres[i * numSpheres + j].velocity(0), 2) +
+                        std::pow(h_spheres[i * numSpheres + j].velocity(1), 2) +
+                        std::pow(h_spheres[i * numSpheres + j].velocity(2), 2));
+
+          file << h_spheres[i * numSpheres + j].center(0) << ","
+               << h_spheres[i * numSpheres + j].center(1) << ","
+               << h_spheres[i * numSpheres + j].center(2) << ","
+               << h_spheres[i * numSpheres + j].velocity(0) << ","
+               << h_spheres[i * numSpheres + j].velocity(1) << ","
+               << h_spheres[i * numSpheres + j].velocity(2) << ","
+               << vel_magnitude << std::endl;
+        }
+
+        file.close();
+      }
+    }
+
+    iter++;
+  }
+
   // Run the SAP
-  sap_gpu_data->Update();
-  sap_gpu_data->TestOneStepSapGPU();
-  gpu_collision_data->IntegrateExplicitEuler(numProblems, numSpheres);
+  sap_gpu_data->TestOneStepSapGPU(num_steps);
 
   if (writeout) {
     gpu_collision_data->RetieveSphereDataToCPU(h_spheres);
