@@ -876,7 +876,8 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
   HANDLE_ERROR(cudaDeviceSynchronize());
 }
 
-// // This function is used in the unit test to confirm the cost evaluation and
+// // This function is used in the unit test to confirm the cost evaluation
+// and
 // // the cholesky solve are correct
 // void TestCostEvalAndSolveSapGPU(std::vector<SAPCPUData>& sap_cpu_data,
 //                                 std::vector<double>& momentum_cost,
@@ -886,7 +887,8 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 //                                 std::vector<Eigen::MatrixXd>& chol_x,
 //                                 int num_velocities, int num_contacts,
 //                                 int num_problems) {
-//   SAPGPUData sap_gpu_data_dir;  // GPU data struct instance for validation of
+//   SAPGPUData sap_gpu_data_dir;  // GPU data struct instance for validation
+//   of
 //   // calculation results of one step
 
 //   sap_gpu_data_dir.MakeSAPGPUData(sap_cpu_data);
@@ -902,7 +904,8 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 //   int threadsPerBlock = 32;
 
 //   SolveSearchDirectionKernel<<<num_problems, threadsPerBlock,
-//                                4096 * sizeof(double)>>>(d_sap_gpu_data_dir);
+//                                4096 *
+//                                sizeof(double)>>>(d_sap_gpu_data_dir);
 
 //   HANDLE_ERROR(cudaDeviceSynchronize());
 

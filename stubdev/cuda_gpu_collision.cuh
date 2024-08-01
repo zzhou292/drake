@@ -492,8 +492,8 @@ __device__ void CalculateFreeMotionVelocity(const Sphere* spheres,
 
   for (int j = idx; j < numSpheres; j += blockDim.x) {
     if (j < numSpheres) {
-      v_star.block<3, 1>(j * 3, 0) =
-          velocity_vector.block<3, 1>(j * 3, 0) + dt * Eigen::Vector3d(0, 0, 0);
+      v_star.block<3, 1>(j * 3, 0) = velocity_vector.block<3, 1>(j * 3, 0) +
+                                     dt * Eigen::Vector3d(0, -4.905, 0);
     }
   }
 
