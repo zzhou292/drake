@@ -370,8 +370,7 @@ __device__ void SAPLineSearchEvalCost(
 __device__ void SAPLineSearchEvalDer(SAPGPUData* data, double alpha,
                                      double& dell_dalpha, double* sums,
                                      Eigen::Map<Eigen::MatrixXd> v_alpha,
-                                     Eigen::Map<Eigen::MatrixXd> delta_v_c,
-                                     Eigen::Map<Eigen::MatrixXd> delta_p) {
+                                     Eigen::Map<Eigen::MatrixXd> delta_v_c) {
   // chol_x(search direction) * momentum_gain(computed in eval device
   // function)
   double res = 0.0;
@@ -470,22 +469,7 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
   int equ_idx = blockIdx.x;
   int thread_idx = threadIdx.x;
 
-  double* sums = buff + buff_arr_offset + 3 * data->NumVelocities() +
-                 3 * data->num_active_contacts();
-
-  Eigen::Map<Eigen::MatrixXd> v_alpha(buff + buff_arr_offset,
-                                      data->NumVelocities(), 1);
-  Eigen::Map<Eigen::MatrixXd> delta_v_c(
-      buff + buff_arr_offset + 1 * data->NumVelocities(),
-      3 * data->num_active_contacts(), 1);
-  Eigen::Map<Eigen::MatrixXd> delta_p(buff + buff_arr_offset +
-                                          1 * data->NumVelocities() +
-                                          3 * data->num_active_contacts(),
-                                      data->NumVelocities(), 1);
-  Eigen::Map<Eigen::MatrixXd> v_guess_prev(buff + buff_arr_offset +
-                                               2 * data->NumVelocities() +
-                                               3 * data->num_active_contacts(),
-                                           data->NumVelocities(), 1);
+  double* sums = buff + buff_arr_offset;
 
   double& alpha_l = buff[0];      // alpha left bound
   double& alpha_r = buff[1];      // alpha right bound
@@ -514,26 +498,29 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
     flag = 1.0;
     first_iter = 1.0;
     for (int i = 0; i < data->NumVelocities(); i++) {
-      v_guess_prev(i, 0) = data->v_guess()(i, 0);
+      data->v_guess_prev()(i, 0) = data->v_guess()(i, 0);
     }
   }
 
   __syncwarp();
 
-  MMultiply_RL(1.0, data->J(), data->chol_x(), delta_v_c,
+  MMultiply_RL(1.0, data->J(), data->chol_x(), data->delta_v_c(),
                data->num_active_contacts() * 3, sums);
-  MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), delta_p, sums);
+  MMultiply(1.0, data->dynamics_matrix(), data->chol_x(), data->delta_p_chol(),
+            sums);
 
   // evaluate the cost function at l_alpha and r_alpha
 
-  SAPLineSearchEvalCost(data, alpha_l, ell_l, sums, v_alpha, v_guess_prev);
+  SAPLineSearchEvalCost(data, alpha_l, ell_l, sums, data->v_alpha(),
+                        data->v_guess_prev());
 
-  SAPLineSearchEvalDer(data, alpha_l, dell_dalpha_l, sums, v_alpha, delta_v_c,
-                       delta_p);
+  SAPLineSearchEvalDer(data, alpha_l, dell_dalpha_l, sums, data->v_alpha(),
+                       data->delta_v_c());
 
-  SAPLineSearchEvalCost(data, alpha_r, ell_r, sums, v_alpha, v_guess_prev);
-  SAPLineSearchEvalDer(data, alpha_r, dell_dalpha_r, sums, v_alpha, delta_v_c,
-                       delta_p);
+  SAPLineSearchEvalCost(data, alpha_r, ell_r, sums, data->v_alpha(),
+                        data->v_guess_prev());
+  SAPLineSearchEvalDer(data, alpha_r, dell_dalpha_r, sums, data->v_alpha(),
+                       data->delta_v_c());
 
   // return logic: early accept
   if (threadIdx.x == 0) {
@@ -553,15 +540,16 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 
   // we evaluate fguess the last as cache will be left in the global memory
   // TODO: Update G and gamma
-  SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
-                        v_guess_prev);
+  SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, data->v_alpha(),
+                        data->v_guess_prev());
 
-  SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
-                       delta_v_c, delta_p);
+  SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums,
+                       data->v_alpha(), data->delta_v_c());
 
   // evaluate the second derivative of mid_alpha
-  SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums, v_alpha,
-                        delta_v_c, delta_p);
+  SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums,
+                        data->v_alpha(), data->delta_v_c(),
+                        data->delta_p_chol());
 
   // TODO: replace this while loop to a for loop
   // SAP line search loop
@@ -602,13 +590,14 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       // we evaluate fguess the last as cache will be left in the global
       // memory
       // TODO: Update G and gamma
-      SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, v_alpha,
-                            v_guess_prev);
-      SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums, v_alpha,
-                           delta_v_c, delta_p);
+      SAPLineSearchEvalCost(data, alpha_guess, ell_guess, sums, data->v_alpha(),
+                            data->v_guess_prev());
+      SAPLineSearchEvalDer(data, alpha_guess, dell_dalpha_guess, sums,
+                           data->v_alpha(), data->delta_v_c());
       // evaluate the second derivative of guess_alpha
       SAPLineSearchEval2Der(data, alpha_guess, d2ell_dalpha2_guess, sums,
-                            v_alpha, delta_v_c, delta_p);
+                            data->v_alpha(), data->delta_v_c(),
+                            data->delta_p_chol());
 
       __syncwarp();
 
@@ -771,10 +760,6 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
     double& momentum_scale = sums[3];
     double& ell_previous = sums[4];
 
-    Eigen::Map<Eigen::MatrixXd> prev_v_guess(
-        sums + 5, data->NumVelocities(),
-        1);  // previous v_guess, used for termination logic
-
     if (threadIdx.x == 0) {
       flag = 1.0;  // thread 0 initializes the flag
       first_iter = 1.0;
@@ -795,12 +780,12 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
         // calculate search direction
         // we add offset to shared memory to avoid SoveWithGuessImplKernel
         // __shared__ varibales being overwritten
-        CalcSearchDirection(data, sums + 5 + data->NumVelocities());
+        CalcSearchDirection(data, sums + 5);
 
         // perform line search
         // we add offset to shared memory to avoid SoveWithGuessImplKernel
         // __shared__ varibales being overwritten
-        double alpha = SAPLineSearch(data, sums + 5 + data->NumVelocities());
+        double alpha = SAPLineSearch(data, sums + 5);
 
         __syncwarp();
 
@@ -838,10 +823,8 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
 
           // assign previous
           for (int i = 0; i < data->NumVelocities(); i++) {
-            prev_v_guess(i, 0) = data->v_guess()(i, 0);
+            data->v_guess_prev_newton()(i, 0) = data->v_guess()(i, 0);
           }
-
-          // printf("this is a step of cholsolve\n");
         }
 
         __syncwarp();
@@ -870,7 +853,7 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 
   // unit test: check for complete solve without constraint
   // the expected result shall converge to free motion velocity v_star
-  SolveWithGuessKernel<<<num_problems, threadsPerBlock, 400 * sizeof(double)>>>(
+  SolveWithGuessKernel<<<num_problems, threadsPerBlock, 51 * sizeof(double)>>>(
       d_sap_gpu_data_solve, num_steps);
 
   HANDLE_ERROR(cudaDeviceSynchronize());

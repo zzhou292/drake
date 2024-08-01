@@ -15,7 +15,7 @@ namespace {
 GTEST_TEST(KernelTest, FullSolveTest) {
   int numSpheres = 22;
   int numPlanes = 4;
-  int numProblems = 100;
+  int numProblems = 2000;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec

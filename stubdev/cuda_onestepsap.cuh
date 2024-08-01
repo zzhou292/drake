@@ -317,6 +317,84 @@ struct SAPGPUData {
         1, 1);
   }
 
+  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> delta_p_chol() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> delta_p_chol() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> delta_v_c() {
+    int row_size = 3 * num_contacts;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> delta_v_c() const {
+    int row_size = 3 * num_contacts;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> v_alpha() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_alpha() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
   __device__ int& num_active_contacts() {
     return num_active_contacts_global[blockIdx.x];
   }
@@ -429,6 +507,17 @@ struct SAPGPUData {
     HANDLE_ERROR(cudaMalloc(&chol_x_global,
                             num_problems * num_velocities * sizeof(double)));
 
+    HANDLE_ERROR(cudaMalloc(&v_guess_prev_global,
+                            num_problems * num_velocities * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&delta_p_chol_global,
+                            num_problems * num_velocities * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&delta_v_c_global,
+                            num_problems * 3 * num_contacts * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&v_alpha_global,
+                            num_problems * num_velocities * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&v_guess_prev_newton_global,
+                            num_problems * num_velocities * sizeof(double)));
+
     // retrieve data from the gpu_collision_data
     A_global = gpu_collision_data->GetDynamicMatrixPtr();
     v_star_global = gpu_collision_data->GetVStarPtr();
@@ -474,6 +563,11 @@ struct SAPGPUData {
     // HANDLE_ERROR(cudaFree(dll_eval_global));
     // HANDLE_ERROR(cudaFree(l_alpha_global));
     // HANDLE_ERROR(cudaFree(r_alpha_global));
+    HANDLE_ERROR(cudaFree(v_guess_prev_global));
+    HANDLE_ERROR(cudaFree(delta_p_chol_global));
+    HANDLE_ERROR(cudaFree(delta_v_c_global));
+    HANDLE_ERROR(cudaFree(v_alpha_global));
+    HANDLE_ERROR(cudaFree(v_guess_prev_newton_global));
   }
 
   void TestOneStepSapGPU(int num_steps = 1);
@@ -509,6 +603,17 @@ struct SAPGPUData {
   int* num_active_contacts_global;  // Global memory to hold number of active
                                     // contacts for each problem, one int per
                                     // problem
+
+  // Newton outer loop related parameters
+  double* v_guess_prev_newton_global;  // Global memory to hold v_guess_prev in
+                                       // newton step for all sims
+
+  // Line search related parameters
+  double*
+      v_guess_prev_global;  // Global memory to hold v_guess_prev for all sims
+  double* delta_p_chol_global;  // Momentum gain at alpha = 1
+  double* delta_v_c_global;     // Global memory to hold contact velocity vector
+  double* v_alpha_global;       // Global memory to hold v_alpha for all sims
 
   // Chlosky solve related variables
   double*
