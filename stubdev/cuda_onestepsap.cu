@@ -49,23 +49,34 @@ __device__ void SAXPY(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 
 // Device helper function to calculate alpha*(A*B) = C
 // A and B are const inputs, C is mutable.
+// Device helper function to calculate alpha*(A*B) = C
+// A and B are const inputs, C is mutable.
 __device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
                           const Eigen::Map<Eigen::MatrixXd> B,
                           Eigen::Map<Eigen::MatrixXd> C, double* sums) {
-  int A_row = A.rows();
-  int A_col = A.cols();
-  int B_col = B.cols();
+  int stride = (A.rows() + 31) / 32;
 
-  for (int i = threadIdx.x; i < A_row; i += blockDim.x) {
-    for (int j = 0; j < B_col; j++) {
-      for (int k = 0; k < A_col; k++) {
-        if (k == 0) sums[threadIdx.x] = 0.0;
-        sums[threadIdx.x] += A(i, k) * B(k, j);
-        if (k == A_col - 1) C(i, j) = alpha * sums[threadIdx.x];
+  for (int k = 0; k < B.cols(); k++) {
+    for (int j = 0; j < A.cols(); j++) {
+      for (int i = 0; i < stride; i++) {
+        int row = i * 32 + threadIdx.x;
+        int col = j;
+        if (row < A.rows()) {
+          if (j == 0) {
+            sums[row] = 0.0;
+          }
+
+          sums[row] += A(row, col) * B(col, k);
+
+          if (col == A.cols() - 1) {
+            C(row, k) = alpha * sums[row];
+          }
+        }
       }
-      C(i, j) = alpha * sums[threadIdx.x];
     }
   }
+
+  __syncwarp();
 }
 
 // Device helper function to calculate alpha*(A*B) = C
@@ -75,16 +86,12 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
                              const Eigen::Map<Eigen::MatrixXd> B,
                              Eigen::Map<Eigen::MatrixXd> C, const int rl,
                              double* sums) {
-  int A_row = rl;
-  int A_col = A.cols();
-  int B_col = B.cols();
-
-  for (int i = threadIdx.x; i < A_row; i += blockDim.x) {
-    for (int j = 0; j < B_col; j++) {
-      for (int k = 0; k < A_col; k++) {
+  for (int i = threadIdx.x; i < rl; i += blockDim.x) {
+    for (int j = 0; j < B.cols(); j++) {
+      for (int k = 0; k < A.cols(); k++) {
         if (k == 0) sums[threadIdx.x] = 0.0;
         sums[threadIdx.x] += A(i, k) * B(k, j);
-        if (k == A_col - 1) C(i, j) = alpha * sums[threadIdx.x];
+        if (k == A.cols() - 1) C(i, j) = alpha * sums[threadIdx.x];
       }
       C(i, j) = alpha * sums[threadIdx.x];
     }
@@ -94,9 +101,9 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 __device__ void CalcConstraintCost(SAPGPUData* data) {
   double sum = 0.0;
   for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
-    double k = data->contact_stiffness(i)(0, 0);
-    double d = data->contact_damping(i)(0, 0);
-    double phi_0_i = data->phi0(i)(0, 0);
+    double& k = data->contact_stiffness(i)(0, 0);
+    double& d = data->contact_damping(i)(0, 0);
+    double& phi_0_i = data->phi0(i)(0, 0);
     double v_d = 1.0 / (d + 1.0e-20);
     double v_x = data->phi0(i)(0, 0) * k / dt / (k + 1.0e-20);
     double v_hat = min(v_x, v_d);
@@ -124,7 +131,7 @@ __device__ void CalcConstraintCost(SAPGPUData* data) {
 }
 
 // Contruct Hessian, H = dynamics_matrix + J * G * J^T
-__device__ void CalculateHessian(SAPGPUData* data) {
+__device__ void CalculateHessian(SAPGPUData* data, double* sums) {
   int num_velocities = data->NumVelocities();
   int num_stride = ((num_velocities * num_velocities) + 31) / 32;
   for (int i = 0; i < num_stride; i++) {
@@ -133,15 +140,24 @@ __device__ void CalculateHessian(SAPGPUData* data) {
       int cur_col = cur_idx / num_velocities;
       int cur_row = cur_idx % num_velocities;
 
-      if (cur_row < num_velocities && cur_col < num_velocities) {
-        double sum = 0.0;
-        for (int j = 0; j < data->num_active_contacts() * 3; j++) {
-          sum += data->J()(j, cur_row) * data->G_J()(j, cur_col);
-        }
-        data->H()(cur_row, cur_col) =
-            data->dynamics_matrix()(cur_row, cur_col) + sum;
+      sums[threadIdx.x] = 0.0;
+      for (int j = 0; j < data->num_active_contacts() * 3; j++) {
+        sums[threadIdx.x] += data->J()(j, cur_row) * data->G_J()(j, cur_col);
       }
+      data->H()(cur_row, cur_col) =
+          data->dynamics_matrix()(cur_row, cur_col) + sums[threadIdx.x];
     }
+  }
+  __syncwarp();
+}
+
+__device__ void CalculateNegGrad(SAPGPUData* data, double* sums) {
+  for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
+    double sum = 0.0;
+    for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
+      sum += data->J()(j, i) * data->gamma_full()(j);
+    }
+    data->neg_grad()(i, 0) = -(data->momentum_gain()(i, 0) - sum);
   }
   __syncwarp();
 }
@@ -188,8 +204,8 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
        i += blockDim.x) {
     if (i % 3 == 2) {
       double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
-      double k = data->contact_stiffness(int(i / 3))(0, 0);
-      double d = data->contact_damping(int(i / 3))(0, 0);
+      double& k = data->contact_stiffness(int(i / 3))(0, 0);
+      double& d = data->contact_damping(int(i / 3))(0, 0);
       double fe0 = data->phi0(int(i / 3))(0, 0) * k;
       double fe = fe0 + dt * k * xdot;
       double damping = 1.0 + d * xdot;
@@ -197,19 +213,13 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
       // calc G
 
       double np = 0.0;
-
       double dn_dvn = -dt * (k * dt * damping + d * fe);
-
       np = dn_dvn;
-
       if (fe <= 0.0) np = 0.0;
-
       if (damping <= 0.0) np = 0.0;
-
       data->G(int(i / 3))(2, 2) = -np;
 
       // calc gamma
-
       double impulse = 0.0;
       impulse = dt * fe * damping;
       if (fe <= 0.0) impulse = 0.0;
@@ -243,9 +253,6 @@ __device__ void CalculateDlDalpha0(SAPGPUData* data) {
 // Calculate for the search direction, this direction will then be scaled by
 // alpha in the line search section
 __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
-  int equ_idx = blockIdx.x;
-  int thread_idx = threadIdx.x;
-
   int num_velocities = data->NumVelocities();
   int num_active_contacts = data->num_active_contacts();
 
@@ -290,18 +297,11 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
   __syncwarp();
 
-  CalculateHessian(data);
+  CalculateHessian(data, sums);
 
   // Calculate negative gradient
-  for (int i = threadIdx.x; i < num_velocities; i += blockDim.x) {
-    double sum = 0.0;
-    for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
-      sum += data->J()(j, i) * data->gamma_full()(j);
-    }
-    data->neg_grad()(i, 0) = -(data->momentum_gain()(i, 0) - sum);
-  }
 
-  __syncwarp();
+  CalculateNegGrad(data, sums);
 
   // Cholesky Factorization and Solve for search direction
   int num_stride = (num_velocities + 31) / 32;
@@ -312,14 +312,14 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   Eigen::Map<Eigen::MatrixXd> d_x = data->chol_x();
   Eigen::Map<Eigen::MatrixXd> d_y = data->chol_y();
 
-  CholeskyFactorizationFunc(d_M, d_L, equ_idx, thread_idx, num_velocities,
+  CholeskyFactorizationFunc(d_M, d_L, blockIdx.x, threadIdx.x, num_velocities,
                             num_stride);
   __syncwarp();
-  CholeskySolveForwardFunc(d_L, d_b, d_y, equ_idx, thread_idx, num_velocities,
-                           num_stride);
+  CholeskySolveForwardFunc(d_L, d_b, d_y, blockIdx.x, threadIdx.x,
+                           num_velocities, num_stride);
   __syncwarp();
-  CholeskySolveBackwardFunc(d_L, d_y, d_x, equ_idx, thread_idx, num_velocities,
-                            num_stride);
+  CholeskySolveBackwardFunc(d_L, d_y, d_x, blockIdx.x, threadIdx.x,
+                            num_velocities, num_stride);
   __syncwarp();
 
   // Calculate the dl_dalpha0 for each problem

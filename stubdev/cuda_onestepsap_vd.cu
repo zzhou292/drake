@@ -53,25 +53,21 @@ __device__ void SAXPY(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 __device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
                           const Eigen::Map<Eigen::MatrixXd> B,
                           Eigen::Map<Eigen::MatrixXd> C, double* sums) {
-  int A_row = A.rows();
-  int A_col = A.cols();
-  int B_col = B.cols();
-  int stride = (A_row + 31) / 32;
-  int thread_idx = threadIdx.x;
+  int stride = (A.rows() + 31) / 32;
 
-  for (int k = 0; k < B_col; k++) {
-    for (int j = 0; j < A_col; j++) {
+  for (int k = 0; k < B.cols(); k++) {
+    for (int j = 0; j < A.cols(); j++) {
       for (int i = 0; i < stride; i++) {
-        int row = i * 32 + thread_idx;
+        int row = i * 32 + threadIdx.x;
         int col = j;
-        if (row < A_row) {
+        if (row < A.rows()) {
           if (j == 0) {
             sums[row] = 0.0;
           }
 
           sums[row] += A(row, col) * B(col, k);
 
-          if (col == A_col - 1) {
+          if (col == A.cols() - 1) {
             C(row, k) = alpha * sums[row];
           }
         }
