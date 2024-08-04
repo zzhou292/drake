@@ -17,7 +17,7 @@ GTEST_TEST(KernelTest, GPU_Collision) {
   Sphere h_spheres[numProblems * numSpheres];
   for (int i = 0; i < numProblems; ++i) {
     for (int j = 0; j < numSpheres; ++j) {
-      h_spheres[i * numSpheres + j].center = Eigen::Vector3d::Random();
+      h_spheres[i * numSpheres + j].center = Eigen::Vector3f::Random();
       h_spheres[i * numSpheres + j].center(0) =
           3.0 * (h_spheres[i * numSpheres + j].center(0) + 1.0) - 1.5;
       h_spheres[i * numSpheres + j].center(1) =
@@ -28,7 +28,7 @@ GTEST_TEST(KernelTest, GPU_Collision) {
 
       // initialize velocity randomly for each sphere
       // the x,y, and z components of the velocity are in the range of [-1, 1]
-      h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d::Random();
+      h_spheres[i * numSpheres + j].velocity = Eigen::Vector3f::Random();
 
       // initialize material properties
       h_spheres[i * numSpheres + j].stiffness = 10.0;
@@ -39,14 +39,14 @@ GTEST_TEST(KernelTest, GPU_Collision) {
 
   // Allocate memory for results on host
   CollisionData h_collisionMatrixSpheres[numProblems * numSpheres * numSpheres];
-  double* h_jacobian = new double[numProblems * (numSpheres * 3) *
-                                  (numSpheres * numSpheres * 3)];
-  double* h_gamma = new double[numProblems * (numSpheres * numSpheres * 3)];
+  float* h_jacobian =
+      new float[numProblems * (numSpheres * 3) * (numSpheres * numSpheres * 3)];
+  float* h_gamma = new float[numProblems * (numSpheres * numSpheres * 3)];
   int* h_num_collisions = new int[numProblems];
 
-  double* h_dynamic_matrix =
-      new double[numProblems * numSpheres * 3 * numSpheres * 3];
-  double* h_velocity_vector = new double[numProblems * numSpheres * 3];
+  float* h_dynamic_matrix =
+      new float[numProblems * numSpheres * 3 * numSpheres * 3];
+  float* h_velocity_vector = new float[numProblems * numSpheres * 3];
 
   // Run the GPU collision engine
   CollisionEngine(h_spheres, numProblems, numSpheres, h_collisionMatrixSpheres,
@@ -60,10 +60,10 @@ GTEST_TEST(KernelTest, GPU_Collision) {
               << std::endl;
 
     // print out dynamic matrix and velcity vector
-    Eigen::Map<Eigen::MatrixXd> dynamic_matrix(
+    Eigen::Map<Eigen::MatrixXf> dynamic_matrix(
         h_dynamic_matrix + i * numSpheres * 3 * numSpheres * 3, numSpheres * 3,
         numSpheres * 3);
-    Eigen::Map<Eigen::VectorXd> velocity_vector(
+    Eigen::Map<Eigen::VectorXf> velocity_vector(
         h_velocity_vector + i * numSpheres * 3, numSpheres * 3);
 
     std::cout << "Dynamic Matrix: " << std::endl;
@@ -88,7 +88,7 @@ GTEST_TEST(KernelTest, GPU_Collision) {
       // only to the point of valid collision number
       // note that the memory block reserved for jacobian and gamma is assuming
       // maximum number of possible collisions
-      Eigen::Map<Eigen::MatrixXd> jacobian(
+      Eigen::Map<Eigen::MatrixXf> jacobian(
           h_jacobian + i * (numSpheres * 3) * (numSpheres * numSpheres * 3),
           numSpheres * 3, h_num_collisions[i] * 3);
 

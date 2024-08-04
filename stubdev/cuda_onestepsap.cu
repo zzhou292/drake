@@ -7,11 +7,11 @@
 
 #define alpha_max 1.5
 #define max_iteration 100
-#define f_tolerance 1.0e-8
-#define abs_tolerance 1.0e-14
-#define rel_tolerance 1.0e-6
-#define cost_abs_tolerance 1.0e-30
-#define cost_rel_tolerance 1.0e-15
+#define f_tolerance 1.0e-4
+#define abs_tolerance 1.0e-7
+#define rel_tolerance 1.0e-3
+#define cost_abs_tolerance 1.0e-15
+#define cost_rel_tolerance 1.0e-7
 
 // ========================================================================
 // OneStepSapGPU Kernels and Functions with new data struct
@@ -25,11 +25,11 @@
 // Device Functions
 // ========================================================================
 // Device helper function to perform SAPXY operation
-// Matrix A, B and C are represented by Eigen::MatrixXd
+// Matrix A, B and C are represented by Eigen::MatrixXf
 // C = alpha * A + B
-__device__ void SAXPY(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
-                      const Eigen::Map<Eigen::MatrixXd> B,
-                      Eigen::Map<Eigen::MatrixXd> C) {
+__device__ void SAXPY(float alpha, const Eigen::Map<Eigen::MatrixXf> A,
+                      const Eigen::Map<Eigen::MatrixXf> B,
+                      Eigen::Map<Eigen::MatrixXf> C) {
   int row = A.rows();
   int col = A.cols();
 
@@ -51,9 +51,9 @@ __device__ void SAXPY(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 // A and B are const inputs, C is mutable.
 // Device helper function to calculate alpha*(A*B) = C
 // A and B are const inputs, C is mutable.
-__device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
-                          const Eigen::Map<Eigen::MatrixXd> B,
-                          Eigen::Map<Eigen::MatrixXd> C, double* sums) {
+__device__ void MMultiply(float alpha, const Eigen::Map<Eigen::MatrixXf> A,
+                          const Eigen::Map<Eigen::MatrixXf> B,
+                          Eigen::Map<Eigen::MatrixXf> C, float* sums) {
   int stride = (A.rows() + 31) / 32;
 
   for (int k = 0; k < B.cols(); k++) {
@@ -82,10 +82,10 @@ __device__ void MMultiply(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 // Device helper function to calculate alpha*(A*B) = C
 // A and B are const inputs, C is mutable.
 // this mm function applies a row limit
-__device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
-                             const Eigen::Map<Eigen::MatrixXd> B,
-                             Eigen::Map<Eigen::MatrixXd> C, const int rl,
-                             double* sums) {
+__device__ void MMultiply_RL(float alpha, const Eigen::Map<Eigen::MatrixXf> A,
+                             const Eigen::Map<Eigen::MatrixXf> B,
+                             Eigen::Map<Eigen::MatrixXf> C, const int rl,
+                             float* sums) {
   for (int i = threadIdx.x; i < rl; i += blockDim.x) {
     for (int j = 0; j < B.cols(); j++) {
       for (int k = 0; k < A.cols(); k++) {
@@ -99,21 +99,21 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 }
 
 __device__ void CalcConstraintCost(SAPGPUData* data) {
-  double sum = 0.0;
+  float sum = 0.0;
   for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
-    double& k = data->contact_stiffness(i)(0, 0);
-    double& d = data->contact_damping(i)(0, 0);
-    double& phi_0_i = data->phi0(i)(0, 0);
-    double v_d = 1.0 / (d + 1.0e-20);
-    double v_x = data->phi0(i)(0, 0) * k / dt / (k + 1.0e-20);
-    double v_hat = min(v_x, v_d);
-    double v_n = (data->J().row(i * 3 + 2) * data->v_guess())(0, 0);
-    double v = min(v_n, v_hat);  // clamped
+    float& k = data->contact_stiffness(i)(0, 0);
+    float& d = data->contact_damping(i)(0, 0);
+    float& phi_0_i = data->phi0(i)(0, 0);
+    float v_d = 1.0 / (d + 1.0e-20);
+    float v_x = data->phi0(i)(0, 0) * k / dt / (k + 1.0e-20);
+    float v_hat = min(v_x, v_d);
+    float v_n = (data->J().row(i * 3 + 2) * data->v_guess())(0, 0);
+    float v = min(v_n, v_hat);  // clamped
 
-    double df = -dt * k * v;
+    float df = -dt * k * v;
 
-    double N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
-                     d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
+    float N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
+                    d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
 
     sum += -N;
   }
@@ -131,7 +131,7 @@ __device__ void CalcConstraintCost(SAPGPUData* data) {
 }
 
 // Contruct Hessian, H = dynamics_matrix + J * G * J^T
-__device__ void CalculateHessian(SAPGPUData* data, double* sums) {
+__device__ void CalculateHessian(SAPGPUData* data, float* sums) {
   int num_velocities = data->NumVelocities();
   int num_stride = ((num_velocities * num_velocities) + 31) / 32;
   for (int i = 0; i < num_stride; i++) {
@@ -151,9 +151,9 @@ __device__ void CalculateHessian(SAPGPUData* data, double* sums) {
   __syncwarp();
 }
 
-__device__ void CalculateNegGrad(SAPGPUData* data, double* sums) {
+__device__ void CalculateNegGrad(SAPGPUData* data, float* sums) {
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
-    double sum = 0.0;
+    float sum = 0.0;
     for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
       sum += data->J()(j, i) * data->gamma_full()(j);
     }
@@ -165,7 +165,7 @@ __device__ void CalculateNegGrad(SAPGPUData* data, double* sums) {
 // Calculate momentum gain and momentum cost
 // This function will overwrite the global memory
 // This function assumes the v_guess is properly set and assumes it is the input
-__device__ void CalcMomentumCost(SAPGPUData* data, double* sums) {
+__device__ void CalcMomentumCost(SAPGPUData* data, float* sums) {
   // Calculate velocity gain
   SAXPY(-1.0, data->v_star(), data->v_guess(), data->velocity_gain());
 
@@ -203,24 +203,24 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
   for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
        i += blockDim.x) {
     if (i % 3 == 2) {
-      double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
-      double& k = data->contact_stiffness(int(i / 3))(0, 0);
-      double& d = data->contact_damping(int(i / 3))(0, 0);
-      double fe0 = data->phi0(int(i / 3))(0, 0) * k;
-      double fe = fe0 + dt * k * xdot;
-      double damping = 1.0 + d * xdot;
+      float xdot = -(data->J().row(i) * data->v_guess())(0, 0);
+      float& k = data->contact_stiffness(int(i / 3))(0, 0);
+      float& d = data->contact_damping(int(i / 3))(0, 0);
+      float fe0 = data->phi0(int(i / 3))(0, 0) * k;
+      float fe = fe0 + dt * k * xdot;
+      float damping = 1.0 + d * xdot;
 
       // calc G
 
-      double np = 0.0;
-      double dn_dvn = -dt * (k * dt * damping + d * fe);
+      float np = 0.0;
+      float dn_dvn = -dt * (k * dt * damping + d * fe);
       np = dn_dvn;
       if (fe <= 0.0) np = 0.0;
       if (damping <= 0.0) np = 0.0;
       data->G(int(i / 3))(2, 2) = -np;
 
       // calc gamma
-      double impulse = 0.0;
+      float impulse = 0.0;
       impulse = dt * fe * damping;
       if (fe <= 0.0) impulse = 0.0;
       if (damping <= 0.0) impulse = 0.0;
@@ -232,7 +232,7 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
 }
 
 __device__ void CalculateDlDalpha0(SAPGPUData* data) {
-  double sum = 0.0;
+  float sum = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     sum += (-data->neg_grad()(i, 0)) * data->chol_x()(i, 0);
   }
@@ -252,7 +252,7 @@ __device__ void CalculateDlDalpha0(SAPGPUData* data) {
 
 // Calculate for the search direction, this direction will then be scaled by
 // alpha in the line search section
-__device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
+__device__ void CalcSearchDirection(SAPGPUData* data, float* sums) {
   int num_velocities = data->NumVelocities();
   int num_active_contacts = data->num_active_contacts();
 
@@ -306,11 +306,11 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
   // Cholesky Factorization and Solve for search direction
   int num_stride = (num_velocities + 31) / 32;
 
-  Eigen::Map<Eigen::MatrixXd> d_M = data->H();
-  Eigen::Map<Eigen::MatrixXd> d_L = data->chol_L();
-  Eigen::Map<Eigen::MatrixXd> d_b = data->neg_grad();
-  Eigen::Map<Eigen::MatrixXd> d_x = data->chol_x();
-  Eigen::Map<Eigen::MatrixXd> d_y = data->chol_y();
+  Eigen::Map<Eigen::MatrixXf> d_M = data->H();
+  Eigen::Map<Eigen::MatrixXf> d_L = data->chol_L();
+  Eigen::Map<Eigen::MatrixXf> d_b = data->neg_grad();
+  Eigen::Map<Eigen::MatrixXf> d_x = data->chol_x();
+  Eigen::Map<Eigen::MatrixXf> d_y = data->chol_y();
 
   CholeskyFactorizationFunc(d_M, d_L, blockIdx.x, threadIdx.x, num_velocities,
                             num_stride);
@@ -333,9 +333,9 @@ __device__ void CalcSearchDirection(SAPGPUData* data, double* sums) {
 
 // Device function to evaluate the cost function at alpha
 __device__ void SAPLineSearchEvalCost(
-    SAPGPUData* data, double alpha, double& f, double* sums,
-    Eigen::Map<Eigen::MatrixXd> v_alpha,
-    Eigen::Map<Eigen::MatrixXd> v_guess_prev) {
+    SAPGPUData* data, float alpha, float& f, float* sums,
+    Eigen::Map<Eigen::MatrixXf> v_alpha,
+    Eigen::Map<Eigen::MatrixXf> v_guess_prev) {
   SAXPY(alpha, data->chol_x(), v_guess_prev, v_alpha);
 
   __syncwarp();
@@ -367,14 +367,14 @@ __device__ void SAPLineSearchEvalCost(
 
 // Device function to evaluate the 1st derivative of the cost function w.r.t.
 // alpha
-__device__ void SAPLineSearchEvalDer(SAPGPUData* data, double alpha,
-                                     double& dell_dalpha, double* sums,
-                                     Eigen::Map<Eigen::MatrixXd> v_alpha,
-                                     Eigen::Map<Eigen::MatrixXd> delta_v_c) {
+__device__ void SAPLineSearchEvalDer(SAPGPUData* data, float alpha,
+                                     float& dell_dalpha, float* sums,
+                                     Eigen::Map<Eigen::MatrixXf> v_alpha,
+                                     Eigen::Map<Eigen::MatrixXf> delta_v_c) {
   // chol_x(search direction) * momentum_gain(computed in eval device
   // function)
-  double res = 0.0;
-  double d_temp = 0.0;
+  float res = 0.0;
+  float d_temp = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     res += data->chol_x()(i, 0) * data->momentum_gain()(i, 0);
   }
@@ -409,13 +409,13 @@ __device__ void SAPLineSearchEvalDer(SAPGPUData* data, double alpha,
 
 // Device function to evaluate the 2nd derivative of the cost function w.r.t.
 // alpha
-__device__ void SAPLineSearchEval2Der(SAPGPUData* data, double alpha,
-                                      double& d2ell_dalpha2, double* sums,
-                                      Eigen::Map<Eigen::MatrixXd> v_alpha,
-                                      Eigen::Map<Eigen::MatrixXd> delta_v_c,
-                                      Eigen::Map<Eigen::MatrixXd> delta_p) {
-  double res = 0.0;
-  double d_temp = 0.0;
+__device__ void SAPLineSearchEval2Der(SAPGPUData* data, float alpha,
+                                      float& d2ell_dalpha2, float* sums,
+                                      Eigen::Map<Eigen::MatrixXf> v_alpha,
+                                      Eigen::Map<Eigen::MatrixXf> delta_v_c,
+                                      Eigen::Map<Eigen::MatrixXf> delta_p) {
+  float res = 0.0;
+  float d_temp = 0.0;
 
   // chol_x(search direction) * delta_p (A * chol_x (search direction))
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
@@ -435,9 +435,9 @@ __device__ void SAPLineSearchEval2Der(SAPGPUData* data, double alpha,
 
   res = 0.0;
   for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
-    double vec_0 = delta_v_c(3 * i, 0);
-    double vec_1 = delta_v_c(3 * i + 1, 0);
-    double vec_2 = delta_v_c(3 * i + 2, 0);
+    float vec_0 = delta_v_c(3 * i, 0);
+    float vec_1 = delta_v_c(3 * i + 1, 0);
+    float vec_2 = delta_v_c(3 * i + 2, 0);
 
     // vector formed by [vec_0, vec_1, vec_2] multiply by G[i].col(j)
     for (int k = 0; k < 3; k++) {
@@ -461,34 +461,33 @@ __device__ void SAPLineSearchEval2Der(SAPGPUData* data, double alpha,
   __syncwarp();
 }
 
-__device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
+__device__ float SAPLineSearch(SAPGPUData* data, float* buff) {
   // scratch space for each problem (per block)
 
-  size_t buff_arr_offset = 14;  // 15 doubles for local variables
+  size_t buff_arr_offset = 14;  // 15 floats for local variables
 
   int equ_idx = blockIdx.x;
   int thread_idx = threadIdx.x;
 
-  double* sums = buff + buff_arr_offset;
+  float* sums = buff + buff_arr_offset;
 
-  double& alpha_l = buff[0];      // alpha left bound
-  double& alpha_r = buff[1];      // alpha right bound
-  double& alpha_guess = buff[2];  // alpha guess value
-  double& ell_l = buff[3];        // evaluated function val at alpha_l
-  double& ell_r = buff[4];        // evaluated function val at alpha_r
-  double& ell_guess = buff[5];    // evaluated function val at alpha_guess
+  float& alpha_l = buff[0];      // alpha left bound
+  float& alpha_r = buff[1];      // alpha right bound
+  float& alpha_guess = buff[2];  // alpha guess value
+  float& ell_l = buff[3];        // evaluated function val at alpha_l
+  float& ell_r = buff[4];        // evaluated function val at alpha_r
+  float& ell_guess = buff[5];    // evaluated function val at alpha_guess
 
-  double& dell_dalpha_l = buff[6];  // derivative at alpha_l w.r.t. alpha
-  double& dell_dalpha_r = buff[7];  // derivative at alpha_r w.r.t. alpha
-  double& dell_dalpha_guess =
-      buff[8];  // derivative at alpha_guess w.r.t. alpha
-  double& d2ell_dalpha2_guess =
+  float& dell_dalpha_l = buff[6];      // derivative at alpha_l w.r.t. alpha
+  float& dell_dalpha_r = buff[7];      // derivative at alpha_r w.r.t. alpha
+  float& dell_dalpha_guess = buff[8];  // derivative at alpha_guess w.r.t. alpha
+  float& d2ell_dalpha2_guess =
       buff[9];  // 2nd derivative at alpha_guess w.r.t. alpha
 
-  double& prev_alpha = buff[10];   // previous alpha record
-  double& dx_negative = buff[11];  // x_negative in the current iteration
-  double& flag = buff[12];         // loop flag
-  double& first_iter = buff[13];   // first iteration flag
+  float& prev_alpha = buff[10];   // previous alpha record
+  float& dx_negative = buff[11];  // x_negative in the current iteration
+  float& flag = buff[12];         // loop flag
+  float& first_iter = buff[13];   // first iteration flag
 
   // scratch space variable initialization
   if (thread_idx == 0) {
@@ -554,7 +553,7 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
   // TODO: replace this while loop to a for loop
   // SAP line search loop
   // TODO: set max_iteration somewhere else
-  // int line_search_iter_recorder = 0;
+  int line_search_iter_recorder = 0;
   for (int i = 0; i < max_iteration; i++) {
     if (flag == 1.0) {
       if (threadIdx.x == 0) {
@@ -631,7 +630,14 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       }
 
       __syncwarp();
+
+      if (threadIdx.x == 0) line_search_iter_recorder++;
+      __syncwarp();
     }
+  }
+
+  if (threadIdx.x == 0) {
+    printf("line search iter: %d\n", line_search_iter_recorder);
   }
 
   return alpha_guess;
@@ -640,8 +646,8 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
 // device function to evaluate the 2-norm of the neg_grad for each iteration
 // this is used to termination logic: ||delta_l_p|| < epsilon_alpha +
 // epsilon_r
-__device__ double NegGradCostEval(SAPGPUData* data) {
-  double sum = 0.0;
+__device__ float NegGradCostEval(SAPGPUData* data) {
+  float sum = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     sum += data->neg_grad()(i, 0) * data->neg_grad()(i, 0);
   }
@@ -656,10 +662,10 @@ __device__ double NegGradCostEval(SAPGPUData* data) {
 
 // device function to evaluate outer loop stopping criteria residual
 __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
-                                             double& momentum_residue,
-                                             double& momentum_scale) {
+                                             float& momentum_residue,
+                                             float& momentum_scale) {
   // calculate p_tilde^2 term
-  double p_tilde_2 = 0.0;
+  float p_tilde_2 = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     p_tilde_2 +=
         ((data->dynamics_matrix()(i, i) / sqrt(data->dynamics_matrix()(i, i))) *
@@ -675,9 +681,9 @@ __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
   p_tilde_2 += __shfl_down_sync(0xFFFFFFFF, p_tilde_2, 1);
 
   // calculate j_tilde^2 term
-  double j_tilde_2 = 0.0;
+  float j_tilde_2 = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
-    double temp = 0.0;
+    float temp = 0.0;
     for (int j = 0; j < 3 * data->num_active_contacts(); j++) {
       temp += data->J()(j, i) * data->gamma_full()(j);
     }
@@ -692,7 +698,7 @@ __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
   j_tilde_2 += __shfl_down_sync(0xFFFFFFFF, j_tilde_2, 1);
 
   // calculate ell_grad_tilde^2 term
-  double ell_grad_tilde_2 = 0.0;
+  float ell_grad_tilde_2 = 0.0;
   for (int i = threadIdx.x; i < data->NumVelocities(); i += blockDim.x) {
     ell_grad_tilde_2 +=
         (-data->neg_grad()(i, 0) * (1 / sqrt(data->dynamics_matrix()(i, i)))) *
@@ -716,11 +722,11 @@ __device__ void CalcStoppingCriteriaResidual(SAPGPUData* data,
 
 __device__ void IntegrateExplicitEulerKernel(Sphere* spheres, int numProblems,
                                              int numSpheres,
-                                             double* d_velocity_vector) {
+                                             float* d_velocity_vector) {
   int idx = threadIdx.x;
   int p_idx = blockIdx.x;
 
-  Eigen::Map<Eigen::VectorXd> velocity_vector(
+  Eigen::Map<Eigen::VectorXf> velocity_vector(
       d_velocity_vector + blockIdx.x * numSpheres * 3, numSpheres * 3, 1);
 
   for (int j = idx; j < numSpheres; j += blockDim.x) {
@@ -739,13 +745,13 @@ __device__ void IntegrateExplicitEulerKernel(Sphere* spheres, int numProblems,
 // ========================================================================
 
 __global__ void SolveSearchDirectionKernel(SAPGPUData* data) {
-  extern __shared__ double sums[];
+  extern __shared__ float sums[];
 
   CalcSearchDirection(data, sums);
 }
 
 __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
-  extern __shared__ double sums[];
+  extern __shared__ float sums[];
 
   for (int i = 0; i < num_steps; i++) {
     // collision engine run
@@ -754,11 +760,11 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
     __syncwarp();
 
     // SAP Iteration flag
-    double& flag = sums[0];
-    double& first_iter = sums[1];
-    double& momentum_residue = sums[2];
-    double& momentum_scale = sums[3];
-    double& ell_previous = sums[4];
+    float& flag = sums[0];
+    float& first_iter = sums[1];
+    float& momentum_residue = sums[2];
+    float& momentum_scale = sums[3];
+    float& ell_previous = sums[4];
 
     if (threadIdx.x == 0) {
       flag = 1.0;  // thread 0 initializes the flag
@@ -769,7 +775,7 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
 
     // TODO: might need replace this while loop to a for loop
     // SAP Iteration loop
-    // int iter_recorder = 0;
+    int iter_recorder = 0;
     for (int iter = 0; iter < max_iteration; iter++) {
       // if (threadIdx.x == 0) {
       //   printf("iter: %d\n", iter);
@@ -785,7 +791,7 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
         // perform line search
         // we add offset to shared memory to avoid SoveWithGuessImplKernel
         // __shared__ varibales being overwritten
-        double alpha = SAPLineSearch(data, sums + 5);
+        float alpha = SAPLineSearch(data, sums + 5);
 
         __syncwarp();
 
@@ -805,10 +811,10 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
             }
 
             // cost criteria check
-            double ell = data->momentum_cost()(0, 0) +
-                         data->constraint_cost()(0, 0);  // current cost
-            double ell_scale = 0.5 * (abs(ell) + abs(ell_previous));
-            double ell_decrement = abs(ell_previous - ell);
+            float ell = data->momentum_cost()(0, 0) +
+                        data->constraint_cost()(0, 0);  // current cost
+            float ell_scale = 0.5 * (abs(ell) + abs(ell_previous));
+            float ell_decrement = abs(ell_previous - ell);
 
             if (ell_decrement <
                     cost_abs_tolerance + cost_rel_tolerance * ell_scale &&
@@ -828,7 +834,12 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
         }
 
         __syncwarp();
+
+        if (threadIdx.x == 0) iter_recorder++;
+        __syncwarp();
       }
+
+      if (threadIdx.x == 0) printf("iter: %d\n", iter_recorder);
     }
 
     __syncwarp();
@@ -853,7 +864,7 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 
   // unit test: check for complete solve without constraint
   // the expected result shall converge to free motion velocity v_star
-  SolveWithGuessKernel<<<num_problems, threadsPerBlock, 51 * sizeof(double)>>>(
+  SolveWithGuessKernel<<<num_problems, threadsPerBlock, 51 * sizeof(float)>>>(
       d_sap_gpu_data_solve, num_steps);
 
   HANDLE_ERROR(cudaDeviceSynchronize());
@@ -863,11 +874,11 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 // and
 // // the cholesky solve are correct
 // void TestCostEvalAndSolveSapGPU(std::vector<SAPCPUData>& sap_cpu_data,
-//                                 std::vector<double>& momentum_cost,
-//                                 std::vector<double>& constraint_cost,
-//                                 std::vector<Eigen::MatrixXd>& hessian,
-//                                 std::vector<Eigen::MatrixXd>& neg_grad,
-//                                 std::vector<Eigen::MatrixXd>& chol_x,
+//                                 std::vector<float>& momentum_cost,
+//                                 std::vector<float>& constraint_cost,
+//                                 std::vector<Eigen::MatrixXf>& hessian,
+//                                 std::vector<Eigen::MatrixXf>& neg_grad,
+//                                 std::vector<Eigen::MatrixXf>& chol_x,
 //                                 int num_velocities, int num_contacts,
 //                                 int num_problems) {
 //   SAPGPUData sap_gpu_data_dir;  // GPU data struct instance for validation
@@ -888,7 +899,7 @@ void SAPGPUData::TestOneStepSapGPU(int num_steps) {
 
 //   SolveSearchDirectionKernel<<<num_problems, threadsPerBlock,
 //                                4096 *
-//                                sizeof(double)>>>(d_sap_gpu_data_dir);
+//                                sizeof(float)>>>(d_sap_gpu_data_dir);
 
 //   HANDLE_ERROR(cudaDeviceSynchronize());
 

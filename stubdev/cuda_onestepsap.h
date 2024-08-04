@@ -14,23 +14,23 @@
 
 // define a constraint data structure
 struct ConstraintData {
-  Eigen::MatrixXd J;
-  std::vector<Eigen::MatrixXd> G;
+  Eigen::MatrixXf J;
+  std::vector<Eigen::MatrixXf> G;
 
-  Eigen::VectorXd phi0;
-  Eigen::VectorXd contact_stiffness;
-  Eigen::VectorXd contact_damping;
+  Eigen::VectorXf phi0;
+  Eigen::VectorXf contact_stiffness;
+  Eigen::VectorXf contact_damping;
 
   int num_active_contacts;
 };
 
 struct SAPCPUData {
-  Eigen::MatrixXd dynamics_matrix;  // Dynamics matrix A
-  Eigen::MatrixXd v_star;           // Free motion velocity v*
-  Eigen::MatrixXd v_guess;
+  Eigen::MatrixXf dynamics_matrix;  // Dynamics matrix A
+  Eigen::MatrixXf v_star;           // Free motion velocity v*
+  Eigen::MatrixXf v_guess;
   ConstraintData constraint_data;
-  std::vector<Eigen::Vector3d> gamma;  // impulse data vector
-  std::vector<Eigen::Vector3d> R;      // regularization matrix vector
+  std::vector<Eigen::Vector3f> gamma;  // impulse data vector
+  std::vector<Eigen::Vector3f> R;      // regularization matrix vector
 
   int num_contacts;
   int num_velocities;

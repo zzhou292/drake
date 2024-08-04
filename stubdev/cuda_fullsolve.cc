@@ -75,7 +75,7 @@ void FullSolveSAP::step(int num_steps) {
 
         // Write data to the file
         for (int j = 0; j < numSpheres; j++) {
-          double vel_magnitude =
+          float vel_magnitude =
               std::sqrt(std::pow(h_spheres[i * numSpheres + j].velocity(0), 2) +
                         std::pow(h_spheres[i * numSpheres + j].velocity(1), 2) +
                         std::pow(h_spheres[i * numSpheres + j].velocity(2), 2));
@@ -119,7 +119,7 @@ void FullSolveSAP::step(int num_steps) {
 
       // Write data to the file
       for (int j = 0; j < numSpheres; j++) {
-        double vel_magnitude =
+        float vel_magnitude =
             std::sqrt(std::pow(h_spheres[i * numSpheres + j].velocity(0), 2) +
                       std::pow(h_spheres[i * numSpheres + j].velocity(1), 2) +
                       std::pow(h_spheres[i * numSpheres + j].velocity(2), 2));

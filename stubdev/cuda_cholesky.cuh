@@ -6,8 +6,8 @@
 
 // =====================
 // Device function to perform Cholesky factorization
-__device__ void CholeskyFactorizationFunc(Eigen::Map<Eigen::MatrixXd> M,
-                                          Eigen::Map<Eigen::MatrixXd> L,
+__device__ void CholeskyFactorizationFunc(Eigen::Map<Eigen::MatrixXf> M,
+                                          Eigen::Map<Eigen::MatrixXf> L,
                                           int equ_idx, int thread_idx, size_t n,
                                           size_t num_stride) {
   for (int stride = 0; stride < num_stride; stride++) {
@@ -16,7 +16,7 @@ __device__ void CholeskyFactorizationFunc(Eigen::Map<Eigen::MatrixXd> M,
 
     for (int i = 0; i <= j_up; ++i) {
       if (j < n && i <= j && i == j) {
-        double sum = 0.0;
+        float sum = 0.0;
         for (int k = 0; k < i; ++k) {
           sum += L(i, k) * L(i, k);
         }
@@ -26,7 +26,7 @@ __device__ void CholeskyFactorizationFunc(Eigen::Map<Eigen::MatrixXd> M,
       __syncwarp();
 
       if (j < n && i <= j && j > i) {
-        double sum = 0.0;
+        float sum = 0.0;
         for (int k = 0; k < i; ++k) {
           sum += L(j, k) * L(i, k);
         }
@@ -39,9 +39,9 @@ __device__ void CholeskyFactorizationFunc(Eigen::Map<Eigen::MatrixXd> M,
 }
 
 // Device function to perform forward substitution
-__device__ void CholeskySolveForwardFunc(Eigen::Map<Eigen::MatrixXd> L,
-                                         Eigen::Map<Eigen::MatrixXd> b,
-                                         Eigen::Map<Eigen::MatrixXd> y,
+__device__ void CholeskySolveForwardFunc(Eigen::Map<Eigen::MatrixXf> L,
+                                         Eigen::Map<Eigen::MatrixXf> b,
+                                         Eigen::Map<Eigen::MatrixXf> y,
                                          int equ_idx, int thread_idx, size_t n,
                                          size_t num_stride) {
   for (int stride = 0; stride < num_stride; stride++) {
@@ -49,7 +49,7 @@ __device__ void CholeskySolveForwardFunc(Eigen::Map<Eigen::MatrixXd> L,
     int j_up = 31 + stride * 32;
 
     // Forward substitution to solve L * y = b
-    double sum = 0.0;
+    float sum = 0.0;
     for (int i = 0; i <= j_up; ++i) {
       if (j < n && i <= j && i == j) {
         y(j, 0) = (b(j) - sum) / L(j, j);
@@ -66,16 +66,16 @@ __device__ void CholeskySolveForwardFunc(Eigen::Map<Eigen::MatrixXd> L,
 }
 
 // Device function to perform backward substitution
-__device__ void CholeskySolveBackwardFunc(Eigen::Map<Eigen::MatrixXd> L,
-                                          Eigen::Map<Eigen::MatrixXd> y,
-                                          Eigen::Map<Eigen::MatrixXd> x,
+__device__ void CholeskySolveBackwardFunc(Eigen::Map<Eigen::MatrixXf> L,
+                                          Eigen::Map<Eigen::MatrixXf> y,
+                                          Eigen::Map<Eigen::MatrixXf> x,
                                           int equ_idx, int thread_idx, size_t n,
                                           size_t num_stride) {
   for (int stride = 0; stride < num_stride; stride++) {
     int j = n - 1 - (thread_idx + stride * 32);
     int j_down = n - 1 - (31 + stride * 32);
 
-    double sum = 0.0;
+    float sum = 0.0;
     for (int i = n - 1; i >= j_down; --i) {
       if (j >= 0 && i >= j && i == j) {
         x(j, 0) = (y(j, 0) - sum) / L(j, j);
