@@ -170,6 +170,22 @@ drake_cc_googletest(
     ],
 )
 
+drake_cc_googletest(
+    name = "cuda_fullsolve_test_10",
+    srcs = ["cuda_fullsolve_test_10.cc"],
+    tags = ["cuda"],
+    deps = [
+	"//common:essential",
+    ":cuda_onestepsap",
+    ":cuda_cholesky",
+    ":cuda_gpu_collision",
+    ":cuda_fullsolve",
+    "@gtest//:main",
+    "@cuda//:cudart",
+    ],
+)
+
+
 
 
 

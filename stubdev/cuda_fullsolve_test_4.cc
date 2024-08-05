@@ -12,10 +12,10 @@
 namespace drake {
 namespace {
 
-GTEST_TEST(KernelTest, FullSolveTest) {
+void run(int numProblems) {
   int numSpheres = 4;
   int numPlanes = 4;
-  int numProblems = 15000;
+  // int numProblems = 200;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec
@@ -38,13 +38,12 @@ GTEST_TEST(KernelTest, FullSolveTest) {
         // int col = i % 20;
         // p << -2.4 + static_cast<double>(col) * (4.8 / 20.0), -1.7, 0.0;
 
-        // double random_angle =
-        //     static_cast<double>(rand()) / RAND_MAX * 2.0 * M_PI;
-        // p << 0.0 + 0.05 * cos(random_angle), -0.10 + 0.03 *
-        // sin(random_angle),
-        //     0.0;
+        double random_angle =
+            static_cast<double>(rand()) / RAND_MAX * 2.0 * M_PI;
+        p << 0.0 + 0.05 * cos(random_angle), -0.10 + 0.03 * sin(random_angle),
+            0.0;
 
-        p << 0.0, -2.0, 0.0;
+        // p << 0.0, -2.0, 0.0;
       }
 
       h_spheres[i * numSpheres + j].center = p;
@@ -58,10 +57,11 @@ GTEST_TEST(KernelTest, FullSolveTest) {
         Eigen::Vector3d direction = random_target - p;
         direction.normalize();
         // scale up the velocity to 8.0 to 20.0, random
-        // h_spheres[i * numSpheres + j].velocity =
-        //     direction * 1.2 +
-        //     static_cast<double>(rand()) / RAND_MAX * 0.5 * direction;
-        h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d(0.0, 1.2, 0.0);
+        h_spheres[i * numSpheres + j].velocity =
+            direction * 1.2 +
+            static_cast<double>(rand()) / RAND_MAX * 0.5 * direction;
+        // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d(0.0, 1.2,
+        // 0.0);
 
         h_spheres[i * numSpheres + j].mass = 0.17;
       }
@@ -70,7 +70,7 @@ GTEST_TEST(KernelTest, FullSolveTest) {
 
       // initialize material properties
       h_spheres[i * numSpheres + j].stiffness = 10000.0;
-      h_spheres[i * numSpheres + j].damping = 1e-20;
+      h_spheres[i * numSpheres + j].damping = 1e-10;
     }
   }
 
@@ -78,25 +78,25 @@ GTEST_TEST(KernelTest, FullSolveTest) {
   for (int i = 0; i < numProblems; i++) {
     for (int j = 0; j < numPlanes; j++) {
       if (j == 0) {
-        h_planes[i * numPlanes + j].p1 << -0.1, 1.0, 0.0;  // -0.25 | -0.1
-        h_planes[i * numPlanes + j].p2 << -0.1, 0.0, 0.0;
+        h_planes[i * numPlanes + j].p1 << -0.25, 1.0, 0.0;  // -0.25 | -0.1
+        h_planes[i * numPlanes + j].p2 << -0.25, 0.0, 0.0;
         h_planes[i * numPlanes + j].n << 1.0, 0.0, 0.0;
       } else if (j == 1) {
-        h_planes[i * numPlanes + j].p1 << 0.0, 0.09, 0.0;
-        h_planes[i * numPlanes + j].p2 << 1.0, 0.09, 0.0;  // 0.35 | 0.09
+        h_planes[i * numPlanes + j].p1 << 0.0, 0.35, 0.0;
+        h_planes[i * numPlanes + j].p2 << 1.0, 0.35, 0.0;  // 0.35 | 0.09
         h_planes[i * numPlanes + j].n << 0.0, -1.0, 0.0;
       } else if (j == 2) {
-        h_planes[i * numPlanes + j].p1 << 0.1, 1.0, 0.0;
-        h_planes[i * numPlanes + j].p2 << 0.1, 1.0, 0.0;
+        h_planes[i * numPlanes + j].p1 << 0.25, 1.0, 0.0;
+        h_planes[i * numPlanes + j].p2 << 0.25, 1.0, 0.0;
         h_planes[i * numPlanes + j].n << -1.0, 0.0, 0.0;
       } else if (j == 3) {
-        h_planes[i * numPlanes + j].p1 << 0.0, -0.17, 0.0;
-        h_planes[i * numPlanes + j].p2 << 1.0, -0.17, 0.0;
+        h_planes[i * numPlanes + j].p1 << 0.0, -0.2, 0.0;
+        h_planes[i * numPlanes + j].p2 << 1.0, -0.2, 0.0;
         h_planes[i * numPlanes + j].n << 0.0, 1.0, 0.0;
       }
 
       h_planes[i * numPlanes + j].stiffness = 10000.0;
-      h_planes[i * numPlanes + j].damping = 1e-20;
+      h_planes[i * numPlanes + j].damping = 1e-10;
     }
   }
 
@@ -118,10 +118,80 @@ GTEST_TEST(KernelTest, FullSolveTest) {
 
   // Calculate the duration
   std::chrono::duration<double, std::milli> duration = end - start;
-  std::cout << "Time taken for 400 iterations: " << duration.count()
-            << "mili seconds" << std::endl;
+  std::cout << "Time taken for 800 iterations, " << numProblems
+            << " envs: " << duration.count() << "mili seconds" << std::endl;
 
   solver.destroy();
+}
+
+GTEST_TEST(KernelTest, FullSolveTest) {
+  for (int i = 0; i < 10; i++) {
+    run(1);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(10);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(50);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(100);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(200);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(300);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(400);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(500);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(600);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(700);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(800);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(900);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(1000);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(2000);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(5000);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(10000);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    run(15000);
+  }
 }
 
 // ===================================================

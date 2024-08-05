@@ -13,9 +13,9 @@ namespace drake {
 namespace {
 
 void run(int numProblems) {
-  int numSpheres = 22;
+  int numSpheres = 10;
   int numPlanes = 4;
-  // int numProblems = 10000;
+  // int numProblems = 15000;
   int numContacts = numSpheres * numSpheres;
 
   // initialize the problem input spheres_vec
@@ -43,30 +43,6 @@ void run(int numProblems) {
       } else if (j == 8) {
         p << 0.03, 0.15588457268119896, 0.0;
       } else if (j == 9) {
-        p << 0.09, 0.15588457268119896, 0.0;
-      } else if (j == 10) {
-        p << -0.12, 0.2078460969082653, 0.0;
-      } else if (j == 11) {
-        p << -0.06, 0.2078460969082653, 0.0;
-      } else if (j == 12) {
-        p << 0.0, 0.2078460969082653, 0.0;
-      } else if (j == 13) {
-        p << 0.06, 0.2078460969082653, 0.0;
-      } else if (j == 14) {
-        p << 0.12, 0.2078460969082653, 0.0;
-      } else if (j == 15) {
-        p << -0.15, 0.2598076211353316, 0.0;
-      } else if (j == 16) {
-        p << -0.09, 0.2598076211353316, 0.0;
-      } else if (j == 17) {
-        p << -0.03, 0.2598076211353316, 0.0;
-      } else if (j == 18) {
-        p << 0.03, 0.2598076211353316, 0.0;
-      } else if (j == 19) {
-        p << 0.09, 0.2598076211353316, 0.0;
-      } else if (j == 20) {
-        p << 0.15, 0.2598076211353316, 0.0;
-      } else if (j == 21) {
         // TODO: randomize the last sphere
         // x between -1.5 to 1.5
         // y between -1.0 and -1.5
@@ -79,7 +55,7 @@ void run(int numProblems) {
         p << 0.0 + 0.15 * cos(random_angle), -0.12 + 0.03 * sin(random_angle),
             0.0;
 
-        // p << 0.0, -0.2, 0.0;
+        // p << 0.0, -2.0, 0.0;
       }
 
       h_spheres[i * numSpheres + j].center = p;
@@ -88,13 +64,13 @@ void run(int numProblems) {
 
       h_spheres[i * numSpheres + j].mass = 0.17;
 
-      if (j == 21) [[unlikely]] {
+      if (j == 9) [[unlikely]] {
         // a random aiming point, from (0,0.25) to (0.0,3.5)
         Eigen::Vector3d random_target(
             0.0, 0.03 + static_cast<double>(rand()) / RAND_MAX * 0.15, 0.0);
         Eigen::Vector3d direction = random_target - p;
         direction.normalize();
-        // scale up the velocity to 8.0 to 20.0, random
+        // scale up the velocity to 8.0 to 20.0,
         h_spheres[i * numSpheres + j].velocity =
             direction * 1.2 +
             static_cast<double>(rand()) / RAND_MAX * 0.5 * direction;
@@ -280,7 +256,6 @@ GTEST_TEST(KernelTest, FullSolveTest) {
     run(15000);
   }
 }
-
 // ===================================================
 // END OF ACTUAL SAP SOLVER FUNCTION CALLS
 // ===================================================
