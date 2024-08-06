@@ -185,6 +185,69 @@ drake_cc_googletest(
     ],
 )
 
+drake_cc_googletest(
+    name = "cuda_fullsolve_test_12",
+    srcs = ["cuda_fullsolve_test_12.cc"],
+    tags = ["cuda"],
+    deps = [
+	"//common:essential",
+    ":cuda_onestepsap",
+    ":cuda_cholesky",
+    ":cuda_gpu_collision",
+    ":cuda_fullsolve",
+    "@gtest//:main",
+    "@cuda//:cudart",
+    ],
+)
+
+drake_cc_googletest(
+    name = "cuda_fullsolve_test_13",
+    srcs = ["cuda_fullsolve_test_13.cc"],
+    tags = ["cuda"],
+    deps = [
+	"//common:essential",
+    ":cuda_onestepsap",
+    ":cuda_cholesky",
+    ":cuda_gpu_collision",
+    ":cuda_fullsolve",
+    "@gtest//:main",
+    "@cuda//:cudart",
+    ],
+)
+
+drake_cc_googletest(
+    name = "cuda_fullsolve_test_14",
+    srcs = ["cuda_fullsolve_test_14.cc"],
+    tags = ["cuda"],
+    deps = [
+	"//common:essential",
+    ":cuda_onestepsap",
+    ":cuda_cholesky",
+    ":cuda_gpu_collision",
+    ":cuda_fullsolve",
+    "@gtest//:main",
+    "@cuda//:cudart",
+    ],
+)
+
+
+drake_cc_googletest(
+    name = "cuda_fullsolve_test_15",
+    srcs = ["cuda_fullsolve_test_15.cc"],
+    tags = ["cuda"],
+    deps = [
+	"//common:essential",
+    ":cuda_onestepsap",
+    ":cuda_cholesky",
+    ":cuda_gpu_collision",
+    ":cuda_fullsolve",
+    "@gtest//:main",
+    "@cuda//:cudart",
+    ],
+)
+
+
+
 
 
 

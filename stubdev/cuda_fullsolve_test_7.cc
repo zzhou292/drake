@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 #include "cuda_fullsolve.h"
@@ -12,7 +14,7 @@
 namespace drake {
 namespace {
 
-void run(int numProblems) {
+double run(int numProblems) {
   int numSpheres = 7;
   int numPlanes = 4;
   // int numProblems = 15000;
@@ -166,7 +168,7 @@ void run(int numProblems) {
   auto start = std::chrono::high_resolution_clock::now();
 
   for (int i = 0; i < 1; i++) {
-    std::cout << "Step " << i << std::endl;
+    // std::cout << "Step " << i << std::endl;
     solver.step(800);
   }
 
@@ -175,80 +177,217 @@ void run(int numProblems) {
 
   // Calculate the duration
   std::chrono::duration<double, std::milli> duration = end - start;
-  std::cout << "Time taken for 800 iterations, " << numProblems
-            << " envs: " << duration.count() << "mili seconds" << std::endl;
 
   solver.destroy();
+
+  return duration.count();
 }
 
 GTEST_TEST(KernelTest, FullSolveTest) {
-  for (int i = 0; i < 10; i++) {
-    run(1);
-  }
+  double sum = 0.0;
+  double min_val = std::numeric_limits<double>::max();
+  double max_val = std::numeric_limits<double>::min();
 
   for (int i = 0; i < 10; i++) {
-    run(10);
+    double timing = run(1);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "1 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(50);
+    double timing = run(10);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "10 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(100);
+    double timing = run(50);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "50 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(200);
+    double timing = run(100);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "100 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(300);
+    double timing = run(200);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "200 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(400);
+    double timing = run(300);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "300 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(500);
+    double timing = run(400);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "400 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(600);
+    double timing = run(500);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "500 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(700);
+    double timing = run(600);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "600 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(800);
+    double timing = run(700);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "700 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(900);
+    double timing = run(800);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "800 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(1000);
+    double timing = run(900);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "900 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(2000);
+    double timing = run(1000);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "1000 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(5000);
+    double timing = run(2000);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "2000 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(10000);
+    double timing = run(5000);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "5000 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
   for (int i = 0; i < 10; i++) {
-    run(15000);
+    double timing = run(10000);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
   }
+  std::cout << "10000 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
+
+  sum = 0.0;
+  min_val = std::numeric_limits<double>::max();
+  max_val = std::numeric_limits<double>::min();
+  for (int i = 0; i < 10; i++) {
+    double timing = run(15000);
+    sum += timing;
+    min_val = std::min(timing, min_val);
+    max_val = std::max(timing, max_val);
+  }
+  std::cout << "15000 Average: " << sum / 10.0 << "  min: " << min_val
+            << "  max: " << max_val << std::endl;
 }
 
 // ===================================================
