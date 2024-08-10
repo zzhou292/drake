@@ -100,22 +100,30 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 
 __device__ void CalcConstraintCost(SAPGPUData* data) {
   double sum = 0.0;
-  for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
-    double& k = data->contact_stiffness(i)(0, 0);
-    double& d = data->contact_damping(i)(0, 0);
-    double& phi_0_i = data->phi0(i)(0, 0);
-    double v_d = 1.0 / (d + 1.0e-20);
-    double v_x = data->phi0(i)(0, 0) * k / dt / (k + 1.0e-20);
-    double v_hat = min(v_x, v_d);
-    double v_n = (data->J().row(i * 3 + 2) * data->v_guess())(0, 0);
-    double v = min(v_n, v_hat);  // clamped
+  for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
+       i += blockDim.x) {
+    if (i % 3 == 2) {
+      double& k = data->contact_stiffness(i / 3)(0, 0);
+      double& d = data->contact_damping(i / 3)(0, 0);
+      double& phi_0_i = data->phi0(i / 3)(0, 0);
+      double v_d = 1.0 / (d + 1.0e-20);
+      double v_x = data->phi0(i / 3)(0, 0) * k / dt / (k + 1.0e-20);
+      double v_hat = min(v_x, v_d);
 
-    double df = -dt * k * v;
+      double v_n = 0.0;
+      for (int j = 0; j < data->NumVelocities(); j++) {
+        v_n += data->J()(i, j) * data->v_guess()(j, 0);
+      }
+      // double v_n = (data->J().row(i) * data->v_guess())(0, 0);
+      double v = min(v_n, v_hat);  // clamped
 
-    double N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
-                     d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
+      double df = -dt * k * v;
 
-    sum += -N;
+      double N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
+                       d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
+
+      sum += -N;
+    }
   }
   sum += __shfl_down_sync(0xFFFFFFFF, sum, 16);
   sum += __shfl_down_sync(0xFFFFFFFF, sum, 8);
@@ -203,7 +211,11 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
   for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
        i += blockDim.x) {
     if (i % 3 == 2) {
-      double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
+      // double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
+      double xdot = 0.0;
+      for (int j = 0; j < data->NumVelocities(); j++) {
+        xdot -= data->J()(i, j) * data->v_guess()(j, 0);
+      }
       double& k = data->contact_stiffness(int(i / 3))(0, 0);
       double& d = data->contact_damping(int(i / 3))(0, 0);
       double fe0 = data->phi0(int(i / 3))(0, 0) * k;
@@ -391,7 +403,10 @@ __device__ void SAPLineSearchEvalDer(SAPGPUData* data, double alpha,
 
   res = 0.0;
   for (int i = threadIdx.x; i < data->num_active_contacts(); i += blockDim.x) {
-    res += delta_v_c.block<3, 1>(3 * i, 0).dot(data->gamma(i));
+    for (int j = 0; j < 3; j++) {
+      res += delta_v_c(3 * i + j, 0) * data->gamma(i)(j);
+    }
+    // res += delta_v_c.block<3, 1>(3 * i, 0).dot(data->gamma(i));
   }
   res += __shfl_down_sync(0xFFFFFFFF, res, 16);
   res += __shfl_down_sync(0xFFFFFFFF, res, 8);
