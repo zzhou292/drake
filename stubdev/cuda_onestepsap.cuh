@@ -21,376 +21,376 @@ struct SAPGPUData {
 #if defined(__CUDACC__)
 
   // Mutable get functions
-  __device__ Eigen::Map<Eigen::MatrixXd> dynamics_matrix() {
+  __device__ Eigen::Map<Eigen::MatrixXf> dynamics_matrix() {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         A_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
   // Const get functions
-  __device__ const Eigen::Map<Eigen::MatrixXd> dynamics_matrix() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> dynamics_matrix() const {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         A_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> v_guess() {
+  __device__ Eigen::Map<Eigen::MatrixXf> v_guess() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> v_guess() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> v_star() {
+  __device__ Eigen::Map<Eigen::MatrixXf> v_star() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_star_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> v_star() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> v_star() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_star_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> velocity_gain() {
+  __device__ Eigen::Map<Eigen::MatrixXf> velocity_gain() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> velocity_gain() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> velocity_gain() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> velocity_gain_transpose() {
+  __device__ Eigen::Map<Eigen::MatrixXf> velocity_gain_transpose() {
     int row_size = 1;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> velocity_gain_transpose() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> velocity_gain_transpose() const {
     int row_size = 1;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> momentum_gain() {
+  __device__ Eigen::Map<Eigen::MatrixXf> momentum_gain() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> momentum_gain() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> momentum_gain() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> momentum_gain_transpose() {
+  __device__ Eigen::Map<Eigen::MatrixXf> momentum_gain_transpose() {
     int row_size = 1;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> momentum_gain_transpose() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> momentum_gain_transpose() const {
     int row_size = 1;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> J() {
+  __device__ Eigen::Map<Eigen::MatrixXf> J() {
     int row_size = 3 * num_contacts;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         J_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> J() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> J() const {
     int row_size = 3 * num_contacts;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         J_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> G(int constraint_index) {
+  __device__ Eigen::Map<Eigen::MatrixXf> G(int constraint_index) {
     int row_size = 3;
     int col_size = 3;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         G_global + (blockIdx.x * num_contacts + constraint_index) * row_size *
                        col_size,
         row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> G(int constraint_index) const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> G(int constraint_index) const {
     int row_size = 3;
     int col_size = 3;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         G_global + (blockIdx.x * num_contacts + constraint_index) * row_size *
                        col_size,
         row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::Vector3d> gamma(int constraint_index) {
-    return Eigen::Map<Eigen::Vector3d>(
+  __device__ Eigen::Map<Eigen::Vector3f> gamma(int constraint_index) {
+    return Eigen::Map<Eigen::Vector3f>(
         gamma_global + (blockIdx.x * num_contacts + constraint_index) * 3, 3,
         1);
   }
 
-  __device__ Eigen::Map<Eigen::Vector3d> gamma_full() const {
-    return Eigen::Map<Eigen::Vector3d>(
+  __device__ Eigen::Map<Eigen::Vector3f> gamma_full() const {
+    return Eigen::Map<Eigen::Vector3f>(
         gamma_global + blockIdx.x * num_contacts * 3, 3 * num_contacts, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> momentum_cost() {
+  __device__ Eigen::Map<Eigen::MatrixXf> momentum_cost() {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         momentum_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> momentum_cost() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> momentum_cost() const {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         momentum_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> constraint_cost() {
+  __device__ Eigen::Map<Eigen::MatrixXf> constraint_cost() {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         constraint_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> constraint_cost() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> constraint_cost() const {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         constraint_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> dl_dalpha0() {
+  __device__ Eigen::Map<Eigen::MatrixXf> dl_dalpha0() {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         dl_dalpha0_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> dl_dalpha0() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> dl_dalpha0() const {
     int row_size = 1;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         dl_dalpha0_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> G_J() {
+  __device__ Eigen::Map<Eigen::MatrixXf> G_J() {
     int row_size = num_contacts * 3;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         G_J_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> G_J() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> G_J() const {
     int row_size = num_contacts * 3;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         G_J_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> H() {
+  __device__ Eigen::Map<Eigen::MatrixXf> H() {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         H_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> H() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> H() const {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         H_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> neg_grad() {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ Eigen::Map<Eigen::MatrixXf> neg_grad() {
+    return Eigen::Map<Eigen::MatrixXf>(
         neg_grad_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
   // Cholesky solve related functions
-  __device__ Eigen::Map<Eigen::MatrixXd> chol_L() {
+  __device__ Eigen::Map<Eigen::MatrixXf> chol_L() {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_L_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> chol_L() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> chol_L() const {
     int row_size = num_velocities;
     int col_size = num_velocities;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_L_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> chol_y() {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ Eigen::Map<Eigen::MatrixXf> chol_y() {
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_y_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> chol_y() const {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ const Eigen::Map<Eigen::MatrixXf> chol_y() const {
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_y_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> chol_x() {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ Eigen::Map<Eigen::MatrixXf> chol_x() {
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_x_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> chol_x() const {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ const Eigen::Map<Eigen::MatrixXf> chol_x() const {
+    return Eigen::Map<Eigen::MatrixXf>(
         chol_x_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> phi0(int constraint_index) {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ Eigen::Map<Eigen::MatrixXf> phi0(int constraint_index) {
+    return Eigen::Map<Eigen::MatrixXf>(
         phi0_global + blockIdx.x * num_contacts + constraint_index, 1, 1);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> phi0(
+  __device__ const Eigen::Map<Eigen::MatrixXf> phi0(
       int constraint_index) const {
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         phi0_global + blockIdx.x * num_contacts + constraint_index, 1, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> contact_stiffness(
+  __device__ Eigen::Map<Eigen::MatrixXf> contact_stiffness(
       int constraint_index) {
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         contact_stiffness_global + blockIdx.x * num_contacts + constraint_index,
         1, 1);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> contact_stiffness(
+  __device__ const Eigen::Map<Eigen::MatrixXf> contact_stiffness(
       int constraint_index) const {
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         contact_stiffness_global + blockIdx.x * num_contacts + constraint_index,
         1, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> contact_damping(int constraint_index) {
-    return Eigen::Map<Eigen::MatrixXd>(
+  __device__ Eigen::Map<Eigen::MatrixXf> contact_damping(int constraint_index) {
+    return Eigen::Map<Eigen::MatrixXf>(
         contact_damping_global + blockIdx.x * num_contacts + constraint_index,
         1, 1);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> contact_damping(
+  __device__ const Eigen::Map<Eigen::MatrixXf> contact_damping(
       int constraint_index) const {
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         contact_damping_global + blockIdx.x * num_contacts + constraint_index,
         1, 1);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev() {
+  __device__ Eigen::Map<Eigen::MatrixXf> v_guess_prev() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> v_guess_prev() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> delta_p_chol() {
+  __device__ Eigen::Map<Eigen::MatrixXf> delta_p_chol() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> delta_p_chol() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> delta_p_chol() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> delta_v_c() {
+  __device__ Eigen::Map<Eigen::MatrixXf> delta_v_c() {
     int row_size = 3 * num_contacts;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> delta_v_c() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> delta_v_c() const {
     int row_size = 3 * num_contacts;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> v_alpha() {
+  __device__ Eigen::Map<Eigen::MatrixXf> v_alpha() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> v_alpha() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> v_alpha() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() {
+  __device__ Eigen::Map<Eigen::MatrixXf> v_guess_prev_newton() {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() const {
+  __device__ const Eigen::Map<Eigen::MatrixXf> v_guess_prev_newton() const {
     int row_size = num_velocities;
     int col_size = 1;
-    return Eigen::Map<Eigen::MatrixXd>(
+    return Eigen::Map<Eigen::MatrixXf>(
         v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
@@ -410,57 +410,57 @@ struct SAPGPUData {
 #endif
 
   // Retrival functions - copy Momentum cost data back to CPU
-  void RetriveMomentumCostToCPU(std::vector<double>& momentum_cost) {
+  void RetriveMomentumCostToCPU(std::vector<float>& momentum_cost) {
     momentum_cost.resize(num_problems);
     cudaMemcpy(momentum_cost.data(), momentum_cost_global,
-               num_problems * sizeof(double), cudaMemcpyDeviceToHost);
+               num_problems * sizeof(float), cudaMemcpyDeviceToHost);
   }
 
   // Retrival functions - copy Regularizer cost data back to CPU
-  void RetriveConstraintCostToCPU(std::vector<double>& constraint_cost) {
+  void RetriveConstraintCostToCPU(std::vector<float>& constraint_cost) {
     constraint_cost.resize(num_problems);
     cudaMemcpy(constraint_cost.data(), constraint_cost_global,
-               num_problems * sizeof(double), cudaMemcpyDeviceToHost);
+               num_problems * sizeof(float), cudaMemcpyDeviceToHost);
   }
 
   // Retrival function - copy Hessian data back to CPU
-  void RetriveHessianToCPU(std::vector<Eigen::MatrixXd>& hessian) {
+  void RetriveHessianToCPU(std::vector<Eigen::MatrixXf>& hessian) {
     hessian.resize(num_problems);
     for (int i = 0; i < num_problems; i++) {
       hessian[i].resize(num_velocities, num_velocities);
       cudaMemcpy(hessian[i].data(),
                  H_global + i * num_velocities * num_velocities,
-                 num_velocities * num_velocities * sizeof(double),
+                 num_velocities * num_velocities * sizeof(float),
                  cudaMemcpyDeviceToHost);
     }
   }
 
   // Retrival function - copy Cholesky x data back to CPU
-  void RetriveCholXToCPU(std::vector<Eigen::MatrixXd>& chol_x) {
+  void RetriveCholXToCPU(std::vector<Eigen::MatrixXf>& chol_x) {
     chol_x.resize(num_problems);
     for (int i = 0; i < num_problems; i++) {
       chol_x[i].resize(num_velocities, 1);
       cudaMemcpy(chol_x[i].data(), chol_x_global + i * num_velocities,
-                 num_velocities * sizeof(double), cudaMemcpyDeviceToHost);
+                 num_velocities * sizeof(float), cudaMemcpyDeviceToHost);
     }
   }
 
   // Retrival function - copy negative gradient data back to CPU
-  void RetriveNegGradToCPU(std::vector<Eigen::MatrixXd>& neg_grad) {
+  void RetriveNegGradToCPU(std::vector<Eigen::MatrixXf>& neg_grad) {
     neg_grad.resize(num_problems);
     for (int i = 0; i < num_problems; i++) {
       neg_grad[i].resize(num_velocities, 1);
       cudaMemcpy(neg_grad[i].data(), neg_grad_global + i * num_velocities,
-                 num_velocities * sizeof(double), cudaMemcpyDeviceToHost);
+                 num_velocities * sizeof(float), cudaMemcpyDeviceToHost);
     }
   }
 
-  void RetriveVGuessToCPU(std::vector<Eigen::MatrixXd>& v_solved) {
+  void RetriveVGuessToCPU(std::vector<Eigen::MatrixXf>& v_solved) {
     v_solved.resize(num_problems);
     for (int i = 0; i < num_problems; i++) {
       v_solved[i].resize(num_velocities, 1);
       cudaMemcpy(v_solved[i].data(), v_guess_global + i * num_velocities,
-                 num_velocities * sizeof(double), cudaMemcpyDeviceToHost);
+                 num_velocities * sizeof(float), cudaMemcpyDeviceToHost);
     }
   }
 
@@ -477,46 +477,46 @@ struct SAPGPUData {
     num_problems = in_num_problems;
 
     HANDLE_ERROR(cudaMalloc(&delta_v_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(
-        &G_global, num_problems * num_contacts * 3 * 3 * sizeof(double)));
+        &G_global, num_problems * num_contacts * 3 * 3 * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&gamma_global,
-                            num_problems * num_contacts * 3 * sizeof(double)));
+                            num_problems * num_contacts * 3 * sizeof(float)));
 
     HANDLE_ERROR(cudaMalloc(&delta_p_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&momentum_cost_global,
-                            num_problems * sizeof(double)));  // 1D vector
+                            num_problems * sizeof(float)));  // 1D vector
 
     HANDLE_ERROR(
-        cudaMalloc(&constraint_cost_global, num_problems * sizeof(double)));
+        cudaMalloc(&constraint_cost_global, num_problems * sizeof(float)));
 
     HANDLE_ERROR(cudaMalloc(&G_J_global, num_problems * 3 * num_contacts *
-                                             num_velocities * sizeof(double)));
+                                             num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&H_global, num_problems * num_velocities *
-                                           num_velocities * sizeof(double)));
+                                           num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&neg_grad_global,
-                            num_problems * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&dl_dalpha0_global, num_problems * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
+    HANDLE_ERROR(cudaMalloc(&dl_dalpha0_global, num_problems * sizeof(float)));
 
     HANDLE_ERROR(cudaMalloc(
         &chol_L_global,
-        num_problems * num_velocities * num_velocities * sizeof(double)));
+        num_problems * num_velocities * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&chol_y_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&chol_x_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
 
     HANDLE_ERROR(cudaMalloc(&v_guess_prev_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&delta_p_chol_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&delta_v_c_global,
-                            num_problems * 3 * num_contacts * sizeof(double)));
+                            num_problems * 3 * num_contacts * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&v_alpha_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
     HANDLE_ERROR(cudaMalloc(&v_guess_prev_newton_global,
-                            num_problems * num_velocities * sizeof(double)));
+                            num_problems * num_velocities * sizeof(float)));
 
     // retrieve data from the gpu_collision_data
     A_global = gpu_collision_data->GetDynamicMatrixPtr();
@@ -573,53 +573,52 @@ struct SAPGPUData {
   void TestOneStepSapGPU(int num_steps = 1);
 
  private:
-  double* A_global;        // Global memory dynamics matrix A for all sims
-  double* v_star_global;   // Global memory free motion generalized velocity v*.
-  double* v_guess_global;  // Global memory v_guess for all sims
-  double* J_global;        // Global memory J matrix for all sims
-  double* G_global;        // Global memory G matrix for all sims
-  double* gamma_global;    // Global memory v_gamma for all sims
+  float* A_global;        // Global memory dynamics matrix A for all sims
+  float* v_star_global;   // Global memory free motion generalized velocity v*.
+  float* v_guess_global;  // Global memory v_guess for all sims
+  float* J_global;        // Global memory J matrix for all sims
+  float* G_global;        // Global memory G matrix for all sims
+  float* gamma_global;    // Global memory v_gamma for all sims
 
-  double* delta_v_global;  // Global memory velocity gain = v - v*
-  double* delta_p_global;  // Global memory momentum gain = A * (v - v*)
+  float* delta_v_global;  // Global memory velocity gain = v - v*
+  float* delta_p_global;  // Global memory momentum gain = A * (v - v*)
 
-  double* momentum_cost_global;  // Global memory momentum_cost for all sims
-  double*
-      constraint_cost_global;  // Global memory regularizer cost for all sims
-  double* dl_dalpha0_global;  // Global memory dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
+  float* momentum_cost_global;    // Global memory momentum_cost for all sims
+  float* constraint_cost_global;  // Global memory regularizer cost for all sims
+  float* dl_dalpha0_global;  // Global memory dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
 
-  double* G_J_global;       // Global memory to hold G*J
-  double* H_global;         // Global memory to hold Hessian
-  double* neg_grad_global;  // Global memory to hold negative gradient
+  float* G_J_global;       // Global memory to hold G*J
+  float* H_global;         // Global memory to hold Hessian
+  float* neg_grad_global;  // Global memory to hold negative gradient
 
-  double* phi0_global;  // Global memory to hold phi0 - collision penetration
-                        // distance reported by the geometry engine
-  double* contact_stiffness_global;  // (harmonic mean of stiffness between two
-                                     // materials) contact stiffness reported by
-                                     // the geometry engine
-  double* contact_damping_global;    // (harmonic mean of damping between two
-                                   // materials) contact damping reported by the
-                                   // geomtry engine
+  float* phi0_global;  // Global memory to hold phi0 - collision penetration
+                       // distance reported by the geometry engine
+  float* contact_stiffness_global;  // (harmonic mean of stiffness between two
+                                    // materials) contact stiffness reported by
+                                    // the geometry engine
+  float* contact_damping_global;    // (harmonic mean of damping between two
+                                  // materials) contact damping reported by the
+                                  // geomtry engine
   int* num_active_contacts_global;  // Global memory to hold number of active
                                     // contacts for each problem, one int per
                                     // problem
 
   // Newton outer loop related parameters
-  double* v_guess_prev_newton_global;  // Global memory to hold v_guess_prev in
-                                       // newton step for all sims
+  float* v_guess_prev_newton_global;  // Global memory to hold v_guess_prev in
+                                      // newton step for all sims
 
   // Line search related parameters
-  double*
+  float*
       v_guess_prev_global;  // Global memory to hold v_guess_prev for all sims
-  double* delta_p_chol_global;  // Momentum gain at alpha = 1
-  double* delta_v_c_global;     // Global memory to hold contact velocity vector
-  double* v_alpha_global;       // Global memory to hold v_alpha for all sims
+  float* delta_p_chol_global;  // Momentum gain at alpha = 1
+  float* delta_v_c_global;     // Global memory to hold contact velocity vector
+  float* v_alpha_global;       // Global memory to hold v_alpha for all sims
 
   // Chlosky solve related variables
-  double*
+  float*
       chol_L_global;  // Global memory to hold factorized L matrix in cholesky
-  double* chol_y_global;  // Global memory to hold y in cholesky
-  double* chol_x_global;  // Global memory to hold x in cholesky
+  float* chol_y_global;  // Global memory to hold y in cholesky
+  float* chol_x_global;  // Global memory to hold x in cholesky
 
   int num_contacts;    // Number of contacts
   int num_problems;    // Number of problems
@@ -632,6 +631,6 @@ struct SAPGPUData {
 // ===========================================================================
 // Joe's Notes
 // ===========================================================================
-//   __device__ Eigen::Map<Eigen::MatrixXd> J(int constraint_index) {
+//   __device__ Eigen::Map<Eigen::MatrixXf> J(int constraint_index) {
 //     J().block(3 * constraint_index, 0, 3, );
 //   }

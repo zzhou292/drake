@@ -5,8 +5,6 @@
 #include "cuda_gpu_collision.cuh"
 #include <cuda_runtime.h>
 
-
-
 #ifndef gravity
 #define gravity -9.81
 #endif
@@ -37,25 +35,25 @@ void CollisionGPUData::Initialize(Sphere* h_spheres, int m_num_problems,
       (void**)&d_collisionMatrixSpheres,
       num_problems * num_spheres * num_spheres * sizeof(CollisionData)));
   HANDLE_ERROR(cudaMalloc((void**)&d_jacobian,
-                          num_problems * sizeof(double) * (num_spheres * 3) *
+                          num_problems * sizeof(float) * (num_spheres * 3) *
                               num_spheres * num_spheres * 3));
   HANDLE_ERROR(
       cudaMalloc((void**)&d_num_collisions, num_problems * sizeof(int)));
   HANDLE_ERROR(cudaMalloc(
       (void**)&d_dynamic_matrix,
-      num_problems * sizeof(double) * num_spheres * 3 * num_spheres * 3));
+      num_problems * sizeof(float) * num_spheres * 3 * num_spheres * 3));
   HANDLE_ERROR(cudaMalloc((void**)&d_velocity_vector,
-                          num_problems * sizeof(double) * num_spheres * 3));
+                          num_problems * sizeof(float) * num_spheres * 3));
   HANDLE_ERROR(cudaMalloc((void**)&d_v_star,
-                          num_problems * sizeof(double) * num_spheres * 3));
-  HANDLE_ERROR(cudaMalloc((void**)&d_phi0, num_problems * sizeof(double) *
+                          num_problems * sizeof(float) * num_spheres * 3));
+  HANDLE_ERROR(cudaMalloc((void**)&d_phi0, num_problems * sizeof(float) *
                                                num_spheres * num_spheres));
   HANDLE_ERROR(
       cudaMalloc((void**)&d_contact_stiffness,
-                 num_problems * sizeof(double) * num_spheres * num_spheres));
+                 num_problems * sizeof(float) * num_spheres * num_spheres));
   HANDLE_ERROR(
       cudaMalloc((void**)&d_contact_damping,
-                 num_problems * sizeof(double) * num_spheres * num_spheres));
+                 num_problems * sizeof(float) * num_spheres * num_spheres));
 
   // copy data to device
   HANDLE_ERROR(cudaMemcpy(d_spheres, h_spheres,
@@ -64,24 +62,24 @@ void CollisionGPUData::Initialize(Sphere* h_spheres, int m_num_problems,
 
   // set data to 0
   HANDLE_ERROR(cudaMemset(d_jacobian, 0,
-                          num_problems * sizeof(double) * (num_spheres * 3) *
+                          num_problems * sizeof(float) * (num_spheres * 3) *
                               num_spheres * num_spheres * 3));
   HANDLE_ERROR(cudaMemset(d_num_collisions, 0, num_problems * sizeof(int)));
   HANDLE_ERROR(cudaMemset(
       d_dynamic_matrix, 0,
-      num_problems * sizeof(double) * num_spheres * 3 * num_spheres * 3));
+      num_problems * sizeof(float) * num_spheres * 3 * num_spheres * 3));
   HANDLE_ERROR(cudaMemset(d_velocity_vector, 0,
-                          num_problems * sizeof(double) * num_spheres * 3));
+                          num_problems * sizeof(float) * num_spheres * 3));
   HANDLE_ERROR(
-      cudaMemset(d_v_star, 0, num_problems * sizeof(double) * num_spheres * 3));
+      cudaMemset(d_v_star, 0, num_problems * sizeof(float) * num_spheres * 3));
   HANDLE_ERROR(cudaMemset(
-      d_phi0, 0, num_problems * sizeof(double) * num_spheres * num_spheres));
+      d_phi0, 0, num_problems * sizeof(float) * num_spheres * num_spheres));
   HANDLE_ERROR(
       cudaMemset(d_contact_stiffness, 0,
-                 num_problems * sizeof(double) * num_spheres * num_spheres));
+                 num_problems * sizeof(float) * num_spheres * num_spheres));
   HANDLE_ERROR(
       cudaMemset(d_contact_damping, 0,
-                 num_problems * sizeof(double) * num_spheres * num_spheres));
+                 num_problems * sizeof(float) * num_spheres * num_spheres));
 }
 
 void CollisionGPUData::InitializePlane(Plane* h_planes, int m_num_planes) {
@@ -131,9 +129,9 @@ void CollisionGPUData::RetrieveCollisionDataToCPU(
       cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrieveJacobianToCPU(double* h_jacobian) {
+void CollisionGPUData::RetrieveJacobianToCPU(float* h_jacobian) {
   HANDLE_ERROR(cudaMemcpy(h_jacobian, d_jacobian,
-                          num_problems * sizeof(double) * (num_spheres * 3) *
+                          num_problems * sizeof(float) * (num_spheres * 3) *
                               num_spheres * num_spheres * 3,
                           cudaMemcpyDeviceToHost));
 }
@@ -143,43 +141,43 @@ void CollisionGPUData::RetrieveNumCollisionsToCPU(int* h_num_collisions) {
                           num_problems * sizeof(int), cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrieveDynamicMatrixToCPU(double* h_dynamic_matrix) {
+void CollisionGPUData::RetrieveDynamicMatrixToCPU(float* h_dynamic_matrix) {
   HANDLE_ERROR(cudaMemcpy(
       h_dynamic_matrix, d_dynamic_matrix,
-      num_problems * sizeof(double) * num_spheres * 3 * num_spheres * 3,
+      num_problems * sizeof(float) * num_spheres * 3 * num_spheres * 3,
       cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrieveVelocityVectorToCPU(double* h_velocity_vector) {
+void CollisionGPUData::RetrieveVelocityVectorToCPU(float* h_velocity_vector) {
   HANDLE_ERROR(cudaMemcpy(h_velocity_vector, d_velocity_vector,
-                          num_problems * sizeof(double) * num_spheres * 3,
+                          num_problems * sizeof(float) * num_spheres * 3,
                           cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrieveVStarToCPU(double* h_v_star) {
+void CollisionGPUData::RetrieveVStarToCPU(float* h_v_star) {
   HANDLE_ERROR(cudaMemcpy(h_v_star, d_v_star,
-                          num_problems * sizeof(double) * num_spheres * 3,
+                          num_problems * sizeof(float) * num_spheres * 3,
                           cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrievePhi0ToCPU(double* h_phi0) {
+void CollisionGPUData::RetrievePhi0ToCPU(float* h_phi0) {
   HANDLE_ERROR(cudaMemcpy(
-      h_phi0, d_phi0, num_problems * sizeof(double) * num_spheres * num_spheres,
+      h_phi0, d_phi0, num_problems * sizeof(float) * num_spheres * num_spheres,
       cudaMemcpyDeviceToHost));
 }
 
 void CollisionGPUData::RetrieveContactStiffnessToCPU(
-    double* h_contact_stiffness) {
+    float* h_contact_stiffness) {
   HANDLE_ERROR(
       cudaMemcpy(h_contact_stiffness, d_contact_stiffness,
-                 num_problems * sizeof(double) * num_spheres * num_spheres,
+                 num_problems * sizeof(float) * num_spheres * num_spheres,
                  cudaMemcpyDeviceToHost));
 }
 
-void CollisionGPUData::RetrieveContactDampingToCPU(double* h_contact_damping) {
+void CollisionGPUData::RetrieveContactDampingToCPU(float* h_contact_damping) {
   HANDLE_ERROR(
       cudaMemcpy(h_contact_damping, d_contact_damping,
-                 num_problems * sizeof(double) * num_spheres * num_spheres,
+                 num_problems * sizeof(float) * num_spheres * num_spheres,
                  cudaMemcpyDeviceToHost));
 }
 
