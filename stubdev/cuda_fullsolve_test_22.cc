@@ -24,7 +24,7 @@ double run(int numProblems) {
   Sphere* h_spheres = new Sphere[numProblems * numSpheres];
   for (int i = 0; i < numProblems; i++) {
     for (int j = 0; j < numSpheres; j++) {
-      Eigen::Vector3d p;
+      Eigen::Vector3f p;
       // Case 1 - 22 Spheres in the environment
       if (j == 0) {
         p << 0.0, 0.0, 0.0;
@@ -74,10 +74,9 @@ double run(int numProblems) {
         // y between -1.0 and -1.5
         // cur ball position
         // int col = i % 20;
-        // p << -2.4 + static_cast<double>(col) * (4.8 / 20.0), -1.7, 0.0;
+        // p << -2.4 + static_cast<float>(col) * (4.8 / 20.0), -1.7, 0.0;
 
-        double random_angle =
-            static_cast<double>(rand()) / RAND_MAX * 2.0 * M_PI;
+        float random_angle = static_cast<float>(rand()) / RAND_MAX * 2.0 * M_PI;
         p << 0.0 + 0.15 * cos(random_angle), -0.12 + 0.03 * sin(random_angle),
             0.0;
 
@@ -86,21 +85,21 @@ double run(int numProblems) {
 
       h_spheres[i * numSpheres + j].center = p;
 
-      h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d::Zero();
+      h_spheres[i * numSpheres + j].velocity = Eigen::Vector3f::Zero();
 
       h_spheres[i * numSpheres + j].mass = 0.17;
 
       if (j == 21) [[unlikely]] {
         // a random aiming point, from (0,0.25) to (0.0,3.5)
-        Eigen::Vector3d random_target(
-            0.0, 0.03 + static_cast<double>(rand()) / RAND_MAX * 0.15, 0.0);
-        Eigen::Vector3d direction = random_target - p;
+        Eigen::Vector3f random_target(
+            0.0, 0.03 + static_cast<float>(rand()) / RAND_MAX * 0.15, 0.0);
+        Eigen::Vector3f direction = random_target - p;
         direction.normalize();
         // scale up the velocity to 8.0 to 20.0, random
         h_spheres[i * numSpheres + j].velocity =
             direction * 1.2 +
-            static_cast<double>(rand()) / RAND_MAX * 0.5 * direction;
-        // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d(0.0, 1.2,
+            static_cast<float>(rand()) / RAND_MAX * 0.5 * direction;
+        // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3f(0.0, 1.2,
         // 0.0);
 
         h_spheres[i * numSpheres + j].mass = 0.17;
@@ -124,10 +123,10 @@ double run(int numProblems) {
       //   // y between -1.0 and -1.5
       //   // cur ball position
       //   // int col = i % 20;
-      //   // p << -2.4 + static_cast<double>(col) * (4.8 / 20.0), -1.7, 0.0;
+      //   // p << -2.4 + static_cast<float>(col) * (4.8 / 20.0), -1.7, 0.0;
 
-      //   double random_angle =
-      //       static_cast<double>(rand()) / RAND_MAX * 2.0 * M_PI;
+      //   float random_angle =
+      //       static_cast<float>(rand()) / RAND_MAX * 2.0 * M_PI;
       //   p << 0.0 + 0.05 * cos(random_angle), -0.12 + 0.03 *
       //   sin(random_angle),
       //       0.0;
@@ -137,19 +136,19 @@ double run(int numProblems) {
 
       // h_spheres[i * numSpheres + j].center = p;
 
-      // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d::Zero();
+      // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3f::Zero();
 
       // h_spheres[i * numSpheres + j].mass = 0.17;
 
       // if (j == 3) [[unlikely]] {
-      //   Eigen::Vector3d random_target(0.0, 0.0, 0.0);
-      //   Eigen::Vector3d direction = random_target - p;
+      //   Eigen::Vector3f random_target(0.0, 0.0, 0.0);
+      //   Eigen::Vector3f direction = random_target - p;
       //   direction.normalize();
       //   // scale up the velocity to 8.0 to 20.0, random
       //   h_spheres[i * numSpheres + j].velocity =
       //       direction * 1.2 +
-      //       static_cast<double>(rand()) / RAND_MAX * 0.5 * direction;
-      //   // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3d(0.0, 5.0,
+      //       static_cast<float>(rand()) / RAND_MAX * 0.5 * direction;
+      //   // h_spheres[i * numSpheres + j].velocity = Eigen::Vector3f(0.0, 5.0,
       //   // 0.0);
 
       //   h_spheres[i * numSpheres + j].mass = 0.17;
@@ -214,6 +213,7 @@ double run(int numProblems) {
 }
 
 GTEST_TEST(KernelTest, FullSolveTest) {
+  // run(100);
   double sum = 0.0;
   double min_val = std::numeric_limits<double>::max();
   double max_val = std::numeric_limits<double>::min();

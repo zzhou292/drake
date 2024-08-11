@@ -67,5 +67,6 @@ class FullSolveSAP {
   bool writeout;
   int iter = 0;
 
-  std::string base_foldername = "/home/jsonzhou/Desktop/my_fork/drake/output";
+  std::string base_foldername =
+      "/home/jsonzhou/Desktop/my_fork_float/drake/output";
 };
