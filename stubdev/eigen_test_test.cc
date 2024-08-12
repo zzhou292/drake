@@ -12,12 +12,18 @@ namespace {
 GTEST_TEST(KernelTest, Cholesky) {
   // EigenTest();
   EigenRowTest();
-  float sum = 0.f;
-  for (int i = 0; i < 50; i++) {
-    // sum += EigenTest();
+  double sum = 0.f;
+  for (int i = 0; i < 100; i++) {
     sum += EigenRowTest();
   }
-  std::cout << "avg_time:" << sum / 50 << std::endl;
+  std::cout << "Eigen Row avg_time:" << sum / 100 << std::endl;
+
+  EigenTest();
+  sum = 0.f;
+  for (int i = 0; i < 100; i++) {
+    sum += EigenTest();
+  }
+  std::cout << "Eigen No Row avg_time:" << sum / 100 << std::endl;
 }
 
 }  // namespace

@@ -4,5 +4,5 @@
 
 #include <eigen3/Eigen/Dense>
 
-float EigenTest();
-float EigenRowTest();
+double EigenTest();
+double EigenRowTest();

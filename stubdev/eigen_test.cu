@@ -17,15 +17,15 @@ static void HandleError(cudaError_t err, const char* file, int line) {
 #define HANDLE_ERROR(err) (HandleError(err, __FILE__, __LINE__))
 
 // Main solve function - including memory allocation, copy, and kernel calls
-float EigenTest() {
-  const int N = 40960;
-  const int sizeMatrix = N * N * sizeof(float);
-  const int sizeVector = N * sizeof(float);
+double EigenTest() {
+  const int N = 60;
+  const int sizeMatrix = N * N * sizeof(double);
+  const int sizeVector = N * sizeof(double);
 
   // Allocate host memory
-  float* h_matrix = new float[N * N];
-  float* h_vector = new float[N];
-  float* h_result = new float[N];
+  double* h_matrix = new double[N * N];
+  double* h_vector = new double[N];
+  double* h_result = new double[N];
 
   // Initialize host memory
   for (int i = 0; i < N; ++i) {
@@ -36,9 +36,9 @@ float EigenTest() {
   }
 
   // Allocate device memory
-  float* d_matrix;
-  float* d_vector;
-  float* d_result;
+  double* d_matrix;
+  double* d_vector;
+  double* d_result;
   cudaMalloc((void**)&d_matrix, sizeMatrix);
   cudaMalloc((void**)&d_vector, sizeVector);
   cudaMalloc((void**)&d_result, sizeVector);
@@ -102,15 +102,15 @@ float EigenTest() {
 }
 
 // Main solve function - including memory allocation, copy, and kernel calls
-float EigenRowTest() {
-  const int N = 40960;
-  const int sizeMatrix = N * N * sizeof(float);
-  const int sizeVector = N * sizeof(float);
+double EigenRowTest() {
+  const int N = 66;
+  const int sizeMatrix = N * N * sizeof(double);
+  const int sizeVector = N * sizeof(double);
 
   // Allocate host memory
-  float* h_matrix = new float[N * N];
-  float* h_vector = new float[N];
-  float* h_result = new float[N];
+  double* h_matrix = new double[N * N];
+  double* h_vector = new double[N];
+  double* h_result = new double[N];
 
   // Initialize host memory
   for (int i = 0; i < N; ++i) {
@@ -121,9 +121,9 @@ float EigenRowTest() {
   }
 
   // Allocate device memory
-  float* d_matrix;
-  float* d_vector;
-  float* d_result;
+  double* d_matrix;
+  double* d_vector;
+  double* d_result;
   cudaMalloc((void**)&d_matrix, sizeMatrix);
   cudaMalloc((void**)&d_vector, sizeVector);
   cudaMalloc((void**)&d_result, sizeVector);
