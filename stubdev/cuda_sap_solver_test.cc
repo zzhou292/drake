@@ -1,8 +1,9 @@
 
-#include "stubdev/cuda_onestepsap.h"
+#include "stubdev/cuda_sap_solver.h"
 
 #include <vector>
 
+#include "stubdev/cuda_sap_solver.cuh"
 #include <eigen3/Eigen/Dense>
 #include <gtest/gtest.h>
 

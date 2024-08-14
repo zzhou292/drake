@@ -1,6 +1,7 @@
 #pragma once
 
-#include "cuda_onestepsap_vd.h"
+#include "cuda_gpu_collision.cuh"
+#include "cuda_sap_solver.h"
 
 #ifndef HANDLE_ERROR_MACRO
 #define HANDLE_ERROR_MACRO
@@ -14,8 +15,11 @@ static void HandleError(cudaError_t err, const char* file, int line) {
 #define HANDLE_ERROR(err) (HandleError(err, __FILE__, __LINE__))
 #endif
 
+//
 // define a SAP data strucutre
 struct SAPGPUData {
+#if defined(__CUDACC__)
+
   // Mutable get functions
   __device__ Eigen::Map<Eigen::MatrixXd> dynamics_matrix() {
     int row_size = num_velocities;
@@ -159,11 +163,6 @@ struct SAPGPUData {
         gamma_global + blockIdx.x * num_contacts * 3, 3 * num_contacts, 1);
   }
 
-  __device__ Eigen::Map<Eigen::Vector3d> R(int constraint_index) {
-    return Eigen::Map<Eigen::Vector3d>(
-        R_global + (blockIdx.x * num_contacts + constraint_index) * 3, 3, 1);
-  }
-
   __device__ Eigen::Map<Eigen::MatrixXd> momentum_cost() {
     int row_size = 1;
     int col_size = 1;
@@ -180,19 +179,19 @@ struct SAPGPUData {
         col_size);
   }
 
-  __device__ Eigen::Map<Eigen::MatrixXd> regularizer_cost() {
+  __device__ Eigen::Map<Eigen::MatrixXd> constraint_cost() {
     int row_size = 1;
     int col_size = 1;
     return Eigen::Map<Eigen::MatrixXd>(
-        regularizer_cost_global + blockIdx.x * row_size * col_size, row_size,
+        constraint_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
-  __device__ const Eigen::Map<Eigen::MatrixXd> regularizer_cost() const {
+  __device__ const Eigen::Map<Eigen::MatrixXd> constraint_cost() const {
     int row_size = 1;
     int col_size = 1;
     return Eigen::Map<Eigen::MatrixXd>(
-        regularizer_cost_global + blockIdx.x * row_size * col_size, row_size,
+        constraint_cost_global + blockIdx.x * row_size * col_size, row_size,
         col_size);
   }
 
@@ -280,29 +279,135 @@ struct SAPGPUData {
         chol_x_global + blockIdx.x * num_velocities, num_velocities, 1);
   }
 
-  __device__ int& line_search_termination() {
-    return line_search_termination_global[blockIdx.x];
+  __device__ Eigen::Map<Eigen::MatrixXd> phi0(int constraint_index) {
+    return Eigen::Map<Eigen::MatrixXd>(
+        phi0_global + blockIdx.x * num_contacts + constraint_index, 1, 1);
   }
 
-  __device__ int& sap_termination() {
-    return sap_termination_global[blockIdx.x];
+  __device__ const Eigen::Map<Eigen::MatrixXd> phi0(
+      int constraint_index) const {
+    return Eigen::Map<Eigen::MatrixXd>(
+        phi0_global + blockIdx.x * num_contacts + constraint_index, 1, 1);
   }
 
-  __device__ int& sap_iteration_counter() {
-    return sap_iteration_counter_global[blockIdx.x];
+  __device__ Eigen::Map<Eigen::MatrixXd> contact_stiffness(
+      int constraint_index) {
+    return Eigen::Map<Eigen::MatrixXd>(
+        contact_stiffness_global + blockIdx.x * num_contacts + constraint_index,
+        1, 1);
   }
 
-  __device__ double l_alpha() { return l_alpha_global[blockIdx.x]; }
+  __device__ const Eigen::Map<Eigen::MatrixXd> contact_stiffness(
+      int constraint_index) const {
+    return Eigen::Map<Eigen::MatrixXd>(
+        contact_stiffness_global + blockIdx.x * num_contacts + constraint_index,
+        1, 1);
+  }
 
-  __device__ const double l_alpha() const { return l_alpha_global[blockIdx.x]; }
+  __device__ Eigen::Map<Eigen::MatrixXd> contact_damping(int constraint_index) {
+    return Eigen::Map<Eigen::MatrixXd>(
+        contact_damping_global + blockIdx.x * num_contacts + constraint_index,
+        1, 1);
+  }
 
-  __device__ double r_alpha() { return r_alpha_global[blockIdx.x]; }
+  __device__ const Eigen::Map<Eigen::MatrixXd> contact_damping(
+      int constraint_index) const {
+    return Eigen::Map<Eigen::MatrixXd>(
+        contact_damping_global + blockIdx.x * num_contacts + constraint_index,
+        1, 1);
+  }
 
-  __device__ const double r_alpha() const { return r_alpha_global[blockIdx.x]; }
+  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> delta_p_chol() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> delta_p_chol() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_p_chol_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> delta_v_c() {
+    int row_size = 3 * num_contacts;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> delta_v_c() const {
+    int row_size = 3 * num_contacts;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        delta_v_c_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> v_alpha() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_alpha() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_alpha_global + blockIdx.x * row_size * col_size, row_size, col_size);
+  }
+
+  __device__ Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ const Eigen::Map<Eigen::MatrixXd> v_guess_prev_newton() const {
+    int row_size = num_velocities;
+    int col_size = 1;
+    return Eigen::Map<Eigen::MatrixXd>(
+        v_guess_prev_newton_global + blockIdx.x * row_size * col_size, row_size,
+        col_size);
+  }
+
+  __device__ int& num_active_contacts() {
+    return num_active_contacts_global[blockIdx.x];
+  }
+
+  __device__ CollisionGPUData* get_collision_gpu_data() {
+    return d_collision_gpu_data;
+  };
 
   __host__ __device__ const int NumVelocities() const { return num_velocities; }
   __host__ __device__ const int NumContacts() const { return num_contacts; }
   __host__ __device__ const int NumProblems() const { return num_problems; }
+
+#endif
 
   // Retrival functions - copy Momentum cost data back to CPU
   void RetriveMomentumCostToCPU(std::vector<double>& momentum_cost) {
@@ -312,9 +417,9 @@ struct SAPGPUData {
   }
 
   // Retrival functions - copy Regularizer cost data back to CPU
-  void RetriveRegularizerCostToCPU(std::vector<double>& regularizer_cost) {
-    regularizer_cost.resize(num_problems);
-    cudaMemcpy(regularizer_cost.data(), regularizer_cost_global,
+  void RetriveConstraintCostToCPU(std::vector<double>& constraint_cost) {
+    constraint_cost.resize(num_problems);
+    cudaMemcpy(constraint_cost.data(), constraint_cost_global,
                num_problems * sizeof(double), cudaMemcpyDeviceToHost);
   }
 
@@ -359,54 +464,23 @@ struct SAPGPUData {
     }
   }
 
-  void RetriveGToCPU(std::vector<Eigen::MatrixXd>& G) {
-    G.resize(num_problems);
-    for (int i = 0; i < num_problems; i++) {
-      G[i].resize(num_contacts * 3, 3);
-      cudaMemcpy(G[i].data(), G_global + i * num_contacts * 3 * 3,
-                 num_contacts * 3 * 3 * sizeof(double), cudaMemcpyDeviceToHost);
-    }
+  void RetriveNumActiveContactToCPU(std::vector<int>& num_active_contacts) {
+    num_active_contacts.resize(num_problems);
+    cudaMemcpy(num_active_contacts.data(), num_active_contacts_global,
+               num_problems * sizeof(int), cudaMemcpyDeviceToHost);
   }
 
-  void RetriveCholLToCPU(std::vector<Eigen::MatrixXd>& L) {
-    L.resize(num_problems);
-    for (int i = 0; i < num_problems; i++) {
-      L[i].resize(num_velocities, num_velocities);
-      cudaMemcpy(L[i].data(),
-                 chol_L_global + i * num_velocities * num_velocities,
-                 num_velocities * num_velocities * sizeof(double),
-                 cudaMemcpyDeviceToHost);
-    }
-  }
+  void Initialize(int in_num_contacts, int in_num_velocities,
+                  int in_num_problems, CollisionGPUData* gpu_collision_data) {
+    num_contacts = in_num_contacts;
+    num_velocities = in_num_velocities;
+    num_problems = in_num_problems;
 
-  void RetrieveIterationCounterToCPU(std::vector<int>& iteration) {
-    iteration.resize(num_problems);
-    cudaMemcpy(iteration.data(), sap_iteration_counter_global,
-               sizeof(int) * num_problems, cudaMemcpyDeviceToHost);
-  }
-
-  void MakeSAPGPUData(std::vector<SAPCPUData> data) {
-    this->num_contacts = data[0].num_contacts;
-    this->num_velocities = data[0].num_velocities;
-    this->num_problems = data.size();
-
-    // Malloc for all pointers
-    HANDLE_ERROR(cudaMalloc(&A_global, num_problems * num_velocities *
-                                           num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&v_guess_global,
-                            num_problems * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&v_star_global,
-                            num_problems * num_velocities * sizeof(double)));
     HANDLE_ERROR(cudaMalloc(&delta_v_global,
                             num_problems * num_velocities * sizeof(double)));
-
-    HANDLE_ERROR(cudaMalloc(&J_global, num_problems * 3 * num_contacts *
-                                           num_velocities * sizeof(double)));
     HANDLE_ERROR(cudaMalloc(
         &G_global, num_problems * num_contacts * 3 * 3 * sizeof(double)));
     HANDLE_ERROR(cudaMalloc(&gamma_global,
-                            num_problems * num_contacts * 3 * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&R_global,
                             num_problems * num_contacts * 3 * sizeof(double)));
 
     HANDLE_ERROR(cudaMalloc(&delta_p_global,
@@ -415,7 +489,7 @@ struct SAPGPUData {
                             num_problems * sizeof(double)));  // 1D vector
 
     HANDLE_ERROR(
-        cudaMalloc(&regularizer_cost_global, num_problems * sizeof(double)));
+        cudaMalloc(&constraint_cost_global, num_problems * sizeof(double)));
 
     HANDLE_ERROR(cudaMalloc(&G_J_global, num_problems * 3 * num_contacts *
                                              num_velocities * sizeof(double)));
@@ -424,6 +498,7 @@ struct SAPGPUData {
     HANDLE_ERROR(cudaMalloc(&neg_grad_global,
                             num_problems * num_velocities * sizeof(double)));
     HANDLE_ERROR(cudaMalloc(&dl_dalpha0_global, num_problems * sizeof(double)));
+
     HANDLE_ERROR(cudaMalloc(
         &chol_L_global,
         num_problems * num_velocities * num_velocities * sizeof(double)));
@@ -432,73 +507,70 @@ struct SAPGPUData {
     HANDLE_ERROR(cudaMalloc(&chol_x_global,
                             num_problems * num_velocities * sizeof(double)));
 
-    HANDLE_ERROR(cudaMalloc(&dl_eval_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&dll_eval_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&l_alpha_global, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMalloc(&r_alpha_global, num_problems * sizeof(double)));
-
-    HANDLE_ERROR(cudaMalloc(&line_search_termination_global,
-                            num_problems * sizeof(int)));
-    HANDLE_ERROR(
-        cudaMalloc(&sap_termination_global, num_problems * sizeof(int)));
-    HANDLE_ERROR(
-        cudaMalloc(&sap_iteration_counter_global, num_problems * sizeof(int)));
-
-    // Set data to initialized value using cudaMemset
-    HANDLE_ERROR(cudaMemset(
-        chol_L_global, 0,
-        num_problems * num_velocities * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(chol_y_global, 0,
+    HANDLE_ERROR(cudaMalloc(&v_guess_prev_global,
                             num_problems * num_velocities * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(chol_x_global, 0,
+    HANDLE_ERROR(cudaMalloc(&delta_p_chol_global,
+                            num_problems * num_velocities * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&delta_v_c_global,
+                            num_problems * 3 * num_contacts * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&v_alpha_global,
+                            num_problems * num_velocities * sizeof(double)));
+    HANDLE_ERROR(cudaMalloc(&v_guess_prev_newton_global,
                             num_problems * num_velocities * sizeof(double)));
 
-    // Initialize line search parameters, reconsider the necessity
-    HANDLE_ERROR(cudaMemset(dl_eval_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(dll_eval_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(l_alpha_global, 0, num_problems * sizeof(double)));
-    HANDLE_ERROR(cudaMemset(r_alpha_global, 0, num_problems * sizeof(double)));
+    // retrieve data from the gpu_collision_data
+    A_global = gpu_collision_data->GetDynamicMatrixPtr();
+    v_star_global = gpu_collision_data->GetVStarPtr();
+    v_guess_global = gpu_collision_data->GetVelocityVectorPtr();
+    J_global = gpu_collision_data->GetJacobianPtr();
+    phi0_global = gpu_collision_data->GetPhi0Ptr();
+    contact_stiffness_global = gpu_collision_data->GetContactStiffnessPtr();
+    contact_damping_global = gpu_collision_data->GetContactDampingPtr();
+    num_active_contacts_global = gpu_collision_data->GetNumCollisionsPtr();
 
-    // Initialize termination conditions
-    HANDLE_ERROR(cudaMemset(line_search_termination_global, 0,
-                            num_problems * sizeof(int)));
-    HANDLE_ERROR(
-        cudaMemset(sap_termination_global, 0, num_problems * sizeof(int)));
-    HANDLE_ERROR(cudaMemset(sap_iteration_counter_global, 0,
-                            num_problems * sizeof(int)));
+    d_collision_gpu_data = gpu_collision_data->GetCollisionGPUDataPtr();
 
-    // Copy data to GPU
-    for (int i = 0; i < num_problems; i++) {
-      HANDLE_ERROR(cudaMemcpy(A_global + i * num_velocities * num_velocities,
-                              data[i].dynamics_matrix.data(),
-                              num_velocities * num_velocities * sizeof(double),
-                              cudaMemcpyHostToDevice));
-      HANDLE_ERROR(
-          cudaMemcpy(v_star_global + i * num_velocities, data[i].v_star.data(),
-                     num_velocities * sizeof(double), cudaMemcpyHostToDevice));
-      HANDLE_ERROR(cudaMemcpy(
-          v_guess_global + i * num_velocities, data[i].v_guess.data(),
-          num_velocities * sizeof(double), cudaMemcpyHostToDevice));
-      HANDLE_ERROR(
-          cudaMemcpy(J_global + i * 3 * num_contacts * num_velocities,
-                     data[i].constraint_data.J.data(),
-                     3 * num_contacts * num_velocities * sizeof(double),
-                     cudaMemcpyHostToDevice));
-
-      for (int j = 0; j < num_contacts; j++) {
-        HANDLE_ERROR(cudaMemcpy(gamma_global + i * num_contacts * 3 + j * 3,
-                                data[i].gamma[j].data(), 3 * sizeof(double),
-                                cudaMemcpyHostToDevice));
-        HANDLE_ERROR(cudaMemcpy(R_global + i * num_contacts * 3 + j * 3,
-                                data[i].R[j].data(), 3 * sizeof(double),
-                                cudaMemcpyHostToDevice));
-        HANDLE_ERROR(cudaMemcpy(G_global + i * num_contacts * 3 * 3 + j * 3 * 3,
-                                data[i].constraint_data.G[j].data(),
-                                3 * 3 * sizeof(double),
-                                cudaMemcpyHostToDevice));
-      }
-    }
+    // copy struct to device
+    HANDLE_ERROR(cudaMalloc(&d_sap_gpu_data_solve, sizeof(SAPGPUData)));
+    HANDLE_ERROR(cudaMemcpy(d_sap_gpu_data_solve, this, sizeof(SAPGPUData),
+                            cudaMemcpyHostToDevice));
   }
+
+  // Free memory
+  void Destroy() {
+    // HANDLE_ERROR(cudaFree(A_global));
+    // HANDLE_ERROR(cudaFree(v_star_global));
+    // HANDLE_ERROR(cudaFree(v_guess_global));
+    // HANDLE_ERROR(cudaFree(J_global));
+    HANDLE_ERROR(cudaFree(G_global));
+    HANDLE_ERROR(cudaFree(gamma_global));
+    HANDLE_ERROR(cudaFree(delta_v_global));
+    HANDLE_ERROR(cudaFree(delta_p_global));
+    HANDLE_ERROR(cudaFree(momentum_cost_global));
+    HANDLE_ERROR(cudaFree(constraint_cost_global));
+    HANDLE_ERROR(cudaFree(dl_dalpha0_global));
+    HANDLE_ERROR(cudaFree(G_J_global));
+    HANDLE_ERROR(cudaFree(H_global));
+    HANDLE_ERROR(cudaFree(neg_grad_global));
+    // HANDLE_ERROR(cudaFree(phi0_global));
+    // HANDLE_ERROR(cudaFree(contact_stiffness_global));
+    // HANDLE_ERROR(cudaFree(contact_damping_global));
+    // HANDLE_ERROR(cudaFree(num_active_contacts_global));
+    HANDLE_ERROR(cudaFree(chol_L_global));
+    HANDLE_ERROR(cudaFree(chol_y_global));
+    HANDLE_ERROR(cudaFree(chol_x_global));
+    // HANDLE_ERROR(cudaFree(dl_eval_global));
+    // HANDLE_ERROR(cudaFree(dll_eval_global));
+    // HANDLE_ERROR(cudaFree(l_alpha_global));
+    // HANDLE_ERROR(cudaFree(r_alpha_global));
+    HANDLE_ERROR(cudaFree(v_guess_prev_global));
+    HANDLE_ERROR(cudaFree(delta_p_chol_global));
+    HANDLE_ERROR(cudaFree(delta_v_c_global));
+    HANDLE_ERROR(cudaFree(v_alpha_global));
+    HANDLE_ERROR(cudaFree(v_guess_prev_newton_global));
+  }
+
+  void TestOneStepSapGPU(int num_steps = 1);
 
  private:
   double* A_global;        // Global memory dynamics matrix A for all sims
@@ -507,19 +579,41 @@ struct SAPGPUData {
   double* J_global;        // Global memory J matrix for all sims
   double* G_global;        // Global memory G matrix for all sims
   double* gamma_global;    // Global memory v_gamma for all sims
-  double* R_global;        // Global memory v_R for all sims
 
   double* delta_v_global;  // Global memory velocity gain = v - v*
   double* delta_p_global;  // Global memory momentum gain = A * (v - v*)
 
   double* momentum_cost_global;  // Global memory momentum_cost for all sims
   double*
-      regularizer_cost_global;  // Global memory regularizer cost for all sims
+      constraint_cost_global;  // Global memory regularizer cost for all sims
   double* dl_dalpha0_global;  // Global memory dℓ/dα(α = 0) = ∇ᵥℓ(α = 0)⋅Δv.
 
   double* G_J_global;       // Global memory to hold G*J
   double* H_global;         // Global memory to hold Hessian
   double* neg_grad_global;  // Global memory to hold negative gradient
+
+  double* phi0_global;  // Global memory to hold phi0 - collision penetration
+                        // distance reported by the geometry engine
+  double* contact_stiffness_global;  // (harmonic mean of stiffness between two
+                                     // materials) contact stiffness reported by
+                                     // the geometry engine
+  double* contact_damping_global;    // (harmonic mean of damping between two
+                                   // materials) contact damping reported by the
+                                   // geomtry engine
+  int* num_active_contacts_global;  // Global memory to hold number of active
+                                    // contacts for each problem, one int per
+                                    // problem
+
+  // Newton outer loop related parameters
+  double* v_guess_prev_newton_global;  // Global memory to hold v_guess_prev in
+                                       // newton step for all sims
+
+  // Line search related parameters
+  double*
+      v_guess_prev_global;  // Global memory to hold v_guess_prev for all sims
+  double* delta_p_chol_global;  // Momentum gain at alpha = 1
+  double* delta_v_c_global;     // Global memory to hold contact velocity vector
+  double* v_alpha_global;       // Global memory to hold v_alpha for all sims
 
   // Chlosky solve related variables
   double*
@@ -531,45 +625,8 @@ struct SAPGPUData {
   int num_problems;    // Number of problems
   int num_velocities;  // Number of velocities
 
-  // Line search related variables
-  double* dl_eval_global;   // Global memory to evaluate dl/dalpha, this also
-                            // serves as a scratch space during the line search
-  double* dll_eval_global;  // Global memory to evaluate dl2/dalpha2, this also
-                            // serves as a scratch space during the line search
-  double*
-      l_alpha_global;  // Global memory to hold left alpha for line search this
-                       // also serves as a scratch space during the line search
-  double*
-      r_alpha_global;  // Global memory to hold right alpha for line search this
-                       // also serves as a scratch space during the line search
-
-  // JZ: The termination condition variables record the termination condition
-  // for line search and sap iterations, the conditions are indexed as
-  // following:
-  //
-  // Line Search:
-  // 0 - invalid (the condition is initialized to 0, if line search terminates
-  // and program is executed correctly, this value should not be 0)
-  // 1 - early accept, no root in bracket (derivative at alpha=alpha_max is
-  // negative)
-  // 2 - early accept, derivative is too small
-  // 3 - accept, bracket is within tolerance
-  // 4 - accept, root is within tolerance
-  // 5 - no accept, maximum iteration reached
-  //
-  // SAP (Outer Loop Iteration):
-  // 0 - invalid (the condition is initialized to 0, if sap terminates and
-  // program is executed correctly, this value should not be 0)
-  // 1 - accept, momentum residual is within tolerance
-  // 2 - accept, cost criteria is within tolerance
-  // 3 - no accept, maximum iteration reached
-  int* line_search_termination_global;  // Global memory to hold line search
-                                        // termination condition (1 int per
-                                        // problem)
-  int* sap_termination_global;  // Global memory to hold sap solver termination
-                                // condition (1 int per problem)
-  int* sap_iteration_counter_global;  // Global memory to hold sap solver
-                                      // iteration counter (1 int per problem)
+  SAPGPUData* d_sap_gpu_data_solve;        // Storing GPU copy of SAPGPUData
+  CollisionGPUData* d_collision_gpu_data;  // Storing GPU copy of SAPGPUData
 };
 
 // ===========================================================================

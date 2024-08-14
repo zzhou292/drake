@@ -1,0 +1,25 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //stubdev:cuda_fullsolve_test_22
+-----------------------------------------------------------------------------
+Running main() from gmock_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from KernelTest
+[ RUN      ] KernelTest.FullSolveTest
+1 Average: 4980.35  min: 4777.44  max: 5320.06
+10 Average: 5232.55  min: 5058.32  max: 5323.26
+50 Average: 5270.96  min: 5144.16  max: 5380.2
+100 Average: 5337.75  min: 5263.2  max: 5453.68
+200 Average: 5930.95  min: 5861.91  max: 6148.06
+300 Average: 6348.25  min: 6245.46  max: 6461.55
+400 Average: 6689.44  min: 6578.82  max: 6791.76
+500 Average: 7033.11  min: 6928.03  max: 7168.47
+600 Average: 7623.93  min: 7508.64  max: 7763.23
+700 Average: 8421.31  min: 8320.38  max: 8550.15
+800 Average: 11047.5  min: 10939.7  max: 11187.9
+900 Average: 14340.9  min: 14033.5  max: 14696.9
+1000 Average: 25019.6  min: 24926.2  max: 25226.1
+2000 Average: 77111.1  min: 77013.2  max: 77296.3
+5000 Average: 179749  min: 179341  max: 180190
+10000 Average: 387648  min: 387162  max: 388245
+out of memory in stubdev/cuda_onestepsap.cuh at line 494

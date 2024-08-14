@@ -1,0 +1,234 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //stubdev:cuda_fullsolve_test_7
+-----------------------------------------------------------------------------
+Running main() from gmock_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from KernelTest
+[ RUN      ] KernelTest.FullSolveTest
+Step 0
+Time taken for 800 iterations, 1 envs: 365.257mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 273.956mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 270.285mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 277.363mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 279.099mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 285.773mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 275.639mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 280.614mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 284.865mili seconds
+Step 0
+Time taken for 800 iterations, 1 envs: 276.937mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 292.237mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 284.793mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 279.732mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 289.704mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 285.936mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 285.913mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 285.757mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 277.389mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 279.052mili seconds
+Step 0
+Time taken for 800 iterations, 10 envs: 282.051mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 300.244mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 305.308mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 288.589mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 291.418mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 290.398mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 288.618mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 285.032mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 292.321mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 287.221mili seconds
+Step 0
+Time taken for 800 iterations, 50 envs: 288.547mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 305.734mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 308.867mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 315.32mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 309.405mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 318.334mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 316.225mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 309.454mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 307.569mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 315.51mili seconds
+Step 0
+Time taken for 800 iterations, 100 envs: 304.456mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 519.451mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 515.959mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 505.918mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 505.26mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 507.467mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 504.537mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 511.783mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 511.023mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 512.441mili seconds
+Step 0
+Time taken for 800 iterations, 200 envs: 501.758mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 636.917mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 645.105mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 624.778mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 629.512mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 624.21mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 648.124mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 654.747mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 646.038mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 634.593mili seconds
+Step 0
+Time taken for 800 iterations, 500 envs: 654.357mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 951.068mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 937.368mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 928.646mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 948.348mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 944.347mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 957.43mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 939.593mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 932.47mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 944.849mili seconds
+Step 0
+Time taken for 800 iterations, 1000 envs: 971.966mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1809.44mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1774.69mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1802.86mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1781.52mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1780.61mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1796.54mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1795.57mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1778.1mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1796.13mili seconds
+Step 0
+Time taken for 800 iterations, 2000 envs: 1834.66mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4337.06mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4392.91mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4290.49mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4389.83mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4312.34mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4285.71mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4408.36mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4279.99mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4336.24mili seconds
+Step 0
+Time taken for 800 iterations, 5000 envs: 4342.46mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8417.42mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8385.42mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8351.48mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8371.17mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8416.33mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8421.88mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8381.16mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8391.72mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8397.44mili seconds
+Step 0
+Time taken for 800 iterations, 10000 envs: 8371.85mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12581.3mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12532.2mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12490.6mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12486.4mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12554.1mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12457.9mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12525.8mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12537.3mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12550.2mili seconds
+Step 0
+Time taken for 800 iterations, 15000 envs: 12567.1mili seconds
+[       OK ] KernelTest.FullSolveTest (305962 ms)
+[----------] 1 test from KernelTest (305962 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (305962 ms total)
+[  PASSED  ] 1 test.

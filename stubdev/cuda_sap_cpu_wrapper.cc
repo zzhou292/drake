@@ -1,4 +1,4 @@
-#include "cuda_fullsolve.h"
+#include "cuda_sap_cpu_wrapper.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "cuda_gpu_collision.cuh"
-#include "cuda_onestepsap.cuh"
-#include "cuda_onestepsap.h"
+#include "cuda_sap_solver.cuh"
+#include "cuda_sap_solver.h"
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -22,9 +22,10 @@
 #endif
 #include <iomanip>
 
-void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
-                        int numProblems_in, int numSpheres_in, int numPlanes_in,
-                        int numContacts_in, bool writeout_in) {
+void CudaSapCpuWrapper::init(Sphere* h_spheres_in, Plane* h_plane_in,
+                             int numProblems_in, int numSpheres_in,
+                             int numPlanes_in, int numContacts_in,
+                             bool writeout_in) {
   this->h_spheres = h_spheres_in;
   this->h_planes = h_plane_in;
   this->numProblems = numProblems_in;
@@ -40,6 +41,7 @@ void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
   this->writeout = writeout_in;
 
   if (writeout) {
+    base_foldername = base_foldername + std::to_string(this->numSpheres);
     create_directory(base_foldername);
     for (int i = 0; i < numProblems; i++) {
       std::string problem_foldername =
@@ -51,7 +53,8 @@ void FullSolveSAP::init(Sphere* h_spheres_in, Plane* h_plane_in,
               << std::endl;
   }
 }
-void FullSolveSAP::step(int num_steps) {
+
+void CudaSapCpuWrapper::step(int num_steps) {
   if (iter == 0) {
     if (writeout) {
       gpu_collision_data->RetieveSphereDataToCPU(h_spheres);
@@ -152,7 +155,7 @@ void FullSolveSAP::step(int num_steps) {
   iter++;
 }
 
-void FullSolveSAP::destroy() {
+void CudaSapCpuWrapper::destroy() {
   gpu_collision_data->Destroy();
   sap_gpu_data->Destroy();
 }

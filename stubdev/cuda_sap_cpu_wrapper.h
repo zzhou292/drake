@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "cuda_gpu_collision.cuh"
-#include "cuda_onestepsap.cuh"
-#include "cuda_onestepsap.h"
+#include "cuda_sap_solver.cuh"
+#include "cuda_sap_solver.h"
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -22,9 +22,10 @@
 #endif
 #include <iomanip>
 
-class FullSolveSAP {
+//
+class CudaSapCpuWrapper {
  public:
-  FullSolveSAP() {
+  CudaSapCpuWrapper() {
     gpu_collision_data = new CollisionGPUData();
     sap_gpu_data = new SAPGPUData();
   }
@@ -67,5 +68,5 @@ class FullSolveSAP {
   bool writeout;
   int iter = 0;
 
-  std::string base_foldername = "/home/jsonzhou/Desktop/my_fork/drake/output";
+  std::string base_foldername = "output";
 };

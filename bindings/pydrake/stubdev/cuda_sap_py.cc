@@ -1,7 +1,7 @@
 #include <cmath>
 
 #include "drake/bindings/pydrake/pydrake_pybind.h"
-#include "drake/stubdev/cuda_fullsolve.h"
+#include "drake/stubdev/cuda_sap_cpu_wrapper.h"
 
 namespace drake {
 namespace pydrake {

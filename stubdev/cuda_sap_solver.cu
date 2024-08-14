@@ -1,8 +1,8 @@
-
+#pragma once
 #include <iostream>
 
 #include "cuda_cholesky.cuh"
-#include "cuda_onestepsap.cuh"
+#include "cuda_sap_solver.cuh"
 #include <cuda_runtime.h>
 
 #define alpha_max 1.5
@@ -14,7 +14,7 @@
 #define cost_rel_tolerance 1.0e-15
 
 // ========================================================================
-// OneStepSapGPU Kernels and Functions with new data struct
+// cuda_sap_solver Kernels and Functions with new data struct
 // ========================================================================
 
 // ========================================================================
@@ -100,30 +100,29 @@ __device__ void MMultiply_RL(double alpha, const Eigen::Map<Eigen::MatrixXd> A,
 
 __device__ void CalcConstraintCost(SAPGPUData* data) {
   double sum = 0.0;
-  for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
-       i += blockDim.x) {
-    if (i % 3 == 2) {
-      double& k = data->contact_stiffness(i / 3)(0, 0);
-      double& d = data->contact_damping(i / 3)(0, 0);
-      double& phi_0_i = data->phi0(i / 3)(0, 0);
-      double v_d = 1.0 / (d + 1.0e-20);
-      double v_x = data->phi0(i / 3)(0, 0) * k / dt / (k + 1.0e-20);
-      double v_hat = min(v_x, v_d);
+  for (int id = threadIdx.x; id < data->num_active_contacts();
+       id += blockDim.x) {
+    int i = id * 3 + 2;
+    double& k = data->contact_stiffness(i / 3)(0, 0);
+    double& d = data->contact_damping(i / 3)(0, 0);
+    double& phi_0_i = data->phi0(i / 3)(0, 0);
+    double v_d = 1.0 / (d + 1.0e-20);
+    double v_x = data->phi0(i / 3)(0, 0) * k / dt / (k + 1.0e-20);
+    double v_hat = min(v_x, v_d);
 
-      double v_n = 0.0;
-      for (int j = 0; j < data->NumVelocities(); j++) {
-        v_n += data->J()(i, j) * data->v_guess()(j, 0);
-      }
-      // double v_n = (data->J().row(i) * data->v_guess())(0, 0);
-      double v = min(v_n, v_hat);  // clamped
-
-      double df = -dt * k * v;
-
-      double N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
-                       d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
-
-      sum += -N;
+    double v_n = 0.0;
+    for (int j = 0; j < data->NumVelocities(); j++) {
+      v_n += data->J()(i, j) * data->v_guess()(j, 0);
     }
+    // double v_n = (data->J().row(i) * data->v_guess())(0, 0);
+    double v = min(v_n, v_hat);  // clamped
+
+    double df = -dt * k * v;
+
+    double N = dt * (v * (phi_0_i * k + 1.0 / 2.0 * df) -
+                     d * v * v / 2.0 * (phi_0_i * k + 2.0 / 3.0 * df));
+
+    sum += -N;
   }
   sum += __shfl_down_sync(0xFFFFFFFF, sum, 16);
   sum += __shfl_down_sync(0xFFFFFFFF, sum, 8);
@@ -208,37 +207,36 @@ __device__ void UpdateGammaG(SAPGPUData* data) {
 
   __syncwarp();
 
-  for (int i = threadIdx.x; i < data->num_active_contacts() * 3;
-       i += blockDim.x) {
-    if (i % 3 == 2) {
-      // double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
-      double xdot = 0.0;
-      for (int j = 0; j < data->NumVelocities(); j++) {
-        xdot -= data->J()(i, j) * data->v_guess()(j, 0);
-      }
-      double& k = data->contact_stiffness(int(i / 3))(0, 0);
-      double& d = data->contact_damping(int(i / 3))(0, 0);
-      double fe0 = data->phi0(int(i / 3))(0, 0) * k;
-      double fe = fe0 + dt * k * xdot;
-      double damping = 1.0 + d * xdot;
-
-      // calc G
-
-      double np = 0.0;
-      double dn_dvn = -dt * (k * dt * damping + d * fe);
-      np = dn_dvn;
-      if (fe <= 0.0) np = 0.0;
-      if (damping <= 0.0) np = 0.0;
-      data->G(int(i / 3))(2, 2) = -np;
-
-      // calc gamma
-      double impulse = 0.0;
-      impulse = dt * fe * damping;
-      if (fe <= 0.0) impulse = 0.0;
-      if (damping <= 0.0) impulse = 0.0;
-
-      data->gamma(int(i / 3))(2) = impulse;
+  for (int id = threadIdx.x; id < data->num_active_contacts();
+       id += blockDim.x) {
+    int i = 3 * id + 2;
+    // double xdot = -(data->J().row(i) * data->v_guess())(0, 0);
+    double xdot = 0.0;
+    for (int j = 0; j < data->NumVelocities(); j++) {
+      xdot -= data->J()(i, j) * data->v_guess()(j, 0);
     }
+    double& k = data->contact_stiffness(int(i / 3))(0, 0);
+    double& d = data->contact_damping(int(i / 3))(0, 0);
+    double fe0 = data->phi0(int(i / 3))(0, 0) * k;
+    double fe = fe0 + dt * k * xdot;
+    double damping = 1.0 + d * xdot;
+
+    // calc G
+
+    double np = 0.0;
+    double dn_dvn = -dt * (k * dt * damping + d * fe);
+    np = dn_dvn;
+    if (fe <= 0.0) np = 0.0;
+    if (damping <= 0.0) np = 0.0;
+    data->G(int(i / 3))(2, 2) = -np;
+
+    // calc gamma
+    double impulse = 0.0;
+    impulse = dt * fe * damping;
+    if (fe <= 0.0) impulse = 0.0;
+    if (damping <= 0.0) impulse = 0.0;
+
+    data->gamma(int(i / 3))(2) = impulse;
   }
   __syncwarp();
 }
@@ -572,6 +570,7 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
   // int line_search_iter_recorder = 0;
   for (int i = 0; i < max_iteration; i++) {
     if (flag == 1.0) {
+      // line_search_iter_recorder++;
       if (threadIdx.x == 0) {
         bool newton_is_slow = false;
 
@@ -648,6 +647,9 @@ __device__ double SAPLineSearch(SAPGPUData* data, double* buff) {
       __syncwarp();
     }
   }
+
+  // if (threadIdx.x == 0)
+  //   printf("Line Search Iteration: %d\n", line_search_iter_recorder);
 
   return alpha_guess;
 }
@@ -792,9 +794,10 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
       if (flag == 0.0) break;
 
       if (flag == 1.0) {
-        // calculate search direction
-        // we add offset to shared memory to avoid SoveWithGuessImplKernel
-        // __shared__ varibales being overwritten
+        // iter_recorder++;
+        //  calculate search direction
+        //  we add offset to shared memory to avoid SoveWithGuessImplKernel
+        //  __shared__ varibales being overwritten
         CalcSearchDirection(data, sums + 5);
 
         // perform line search
@@ -845,6 +848,9 @@ __global__ void SolveWithGuessKernel(SAPGPUData* data, int num_steps) {
         __syncwarp();
       }
     }
+
+    // if (threadIdx.x == 0) printf("Outer Loop Iteration: %d\n",
+    // iter_recorder);
 
     __syncwarp();
 

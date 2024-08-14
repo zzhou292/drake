@@ -1,4 +1,4 @@
-#include "stubdev/eigen_test.h"
+#include "stubdev/cuda_eigen_debug.h"
 
 #include <iostream>
 #include <vector>
@@ -10,20 +10,19 @@ namespace drake {
 namespace {
 
 GTEST_TEST(KernelTest, Cholesky) {
-  // EigenTest();
   EigenRowTest();
   double sum = 0.f;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 1000; i++) {
     sum += EigenRowTest();
   }
-  std::cout << "Eigen Row avg_time:" << sum / 100 << std::endl;
+  std::cout << "Eigen Row avg_time:" << sum / 1000 << "ms" << std::endl;
 
   EigenTest();
   sum = 0.f;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 1000; i++) {
     sum += EigenTest();
   }
-  std::cout << "Eigen No Row avg_time:" << sum / 100 << std::endl;
+  std::cout << "Eigen No Row avg_time:" << sum / 1000 << "ms" << std::endl;
 }
 
 }  // namespace

@@ -1,0 +1,31 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //stubdev:cuda_fullsolve_test_10
+-----------------------------------------------------------------------------
+Running main() from gmock_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from KernelTest
+[ RUN      ] KernelTest.FullSolveTest
+1 Average: 698.569  min: 669.337  max: 743.632
+10 Average: 699.544  min: 685.051  max: 715.128
+50 Average: 714.767  min: 711.049  max: 722.586
+100 Average: 774.132  min: 767.998  max: 779.041
+200 Average: 890.144  min: 887.063  max: 894.668
+300 Average: 1013.15  min: 1002.74  max: 1023.72
+400 Average: 1116.84  min: 1108.98  max: 1124.17
+500 Average: 1198.37  min: 1192.42  max: 1209.84
+600 Average: 1313.74  min: 1305.19  max: 1319.5
+700 Average: 1420.8  min: 1411.55  max: 1435.07
+800 Average: 1545.99  min: 1531.4  max: 1607.42
+900 Average: 1666.22  min: 1639.95  max: 1695.02
+1000 Average: 1763.91  min: 1757.48  max: 1770.86
+2000 Average: 3038.23  min: 2998.77  max: 3080.8
+5000 Average: 7427.22  min: 7325.9  max: 7563.36
+10000 Average: 14344.2  min: 14228.6  max: 14407.4
+15000 Average: 21228.3  min: 21133.3  max: 21401.3
+[       OK ] KernelTest.FullSolveTest (611418 ms)
+[----------] 1 test from KernelTest (611418 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (611418 ms total)
+[  PASSED  ] 1 test.

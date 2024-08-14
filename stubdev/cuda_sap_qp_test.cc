@@ -1,7 +1,8 @@
 
+#include "stubdev/cuda_sap_qp.h"
+
 #include <vector>
 
-#include "stubdev/cuda_onestepsap_vd.h"
 #include <eigen3/Eigen/Dense>
 #include <gtest/gtest.h>
 

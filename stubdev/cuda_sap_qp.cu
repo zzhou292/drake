@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include "cuda_cholesky.cuh"
-#include "cuda_onestepsap_vd.cuh"
+#include "cuda_sap_qp.cuh"
 #include <cuda_runtime.h>
 
 #define alpha_max 1.5

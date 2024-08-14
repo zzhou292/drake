@@ -228,9 +228,9 @@ def installed_headers_for_drake_deps(deps):
             not x == "//:drake_shared_library" and
             not x.startswith("//third_party") and
             x.find("cuda_gpu_collision") == -1 and
-            x.find("cuda_onestepsap") == -1 and
+            x.find("cuda_sap_solver") == -1 and
             x.find("cuda_cholesky") == -1 and
-            x.find("cuda_onestepsap_vd") == -1
+            x.find("cuda_sap_qp") == -1
         )
     ]
 

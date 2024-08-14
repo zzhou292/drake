@@ -1,3 +1,6 @@
+// Cuda cholesky factorization and solve nvcc library under
+// stubdev folder.
+
 #include <stdio.h>
 
 #include <iostream>

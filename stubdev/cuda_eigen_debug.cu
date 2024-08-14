@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "eigen_test.cuh"
-#include "eigen_test.h"
+#include "cuda_eigen_debug.cuh"
+#include "cuda_eigen_debug.h"
 #include <cuda_runtime.h>
 // CUDA error handeling
 // =====================

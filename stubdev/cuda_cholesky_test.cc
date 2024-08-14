@@ -1,3 +1,6 @@
+// Unit test for cuda cholesky factorization and solve nvcc library under
+// stubdev folder.
+
 #include "stubdev/cuda_cholesky.h"
 
 #include <iostream>
