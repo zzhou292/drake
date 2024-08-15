@@ -29,6 +29,18 @@ The "cuda_gpu_collision.cu" contains function implementations to initialize the 
 
 Library which contains the main cuda_sap_solver. cuda Kernels and device functions can be found in "cuda_sap_solver.cu". cuda data access device functions and related data struct definition can be found in "cuda_sap_solver.cuh". 
 
+# cuda_sap_qp library
+
+Essentially, this is a duplicate of cuda_sap_solver but with slight modification to construct a simple QP problem with a constraint being impose for x larger than 6. 
+
+This library was constructed during the development of cuda_sap_solver to assist debugging and correctbess validation, and should only be used as a reference as many performance optimization made into the cuda_sap_solver were not propagated back to cuda_sap_qp. 
+
+The unit test "cuda_sap_qp_test.cc" checks for correctness of various free motion velocity and various initial guesses. The unit test checks for the correctness of the converged solution, number of newton iterations needed for convergence, and number of line search loop. You can run the unit test with command:
+
+```bash
+bazel run stubdev:cuda_sap_qp_test
+```
+
 # cuda_sap_cpu_wrapper
 
 The CPU entry point for the simulation contains one CollisionGPUData and one SAPGPUData. This encapsulation abstracts the entire simulation into three major functions: init (initialization), step (perform specified steps of simulation on the GPU), and destroy (delete related data structs and release GPU memory).
