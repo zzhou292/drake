@@ -5,7 +5,7 @@ Within the stubdev folder, the following libraries and unit tests:
 CUDA Cholesky factorization and solve library. The most important code is in "cuda_cholesky.cuh", which contains three CUDA device functions to perform Cholesky factorization, forward substitution, and backward substitution. "cuda_cholesky.cu" contains driver code for the unit test "cuda_cholesky_test.cc." The .cu file and .cc file can be viewed separately as a functional unit test and will not be used in the actual CUDA SAP solver.
 
 ```bash
-bazel run stubev:cuda_cholesky_test
+bazel run stubdev:cuda_cholesky_test
 ```
 
 # cuda_eigen_debug library
