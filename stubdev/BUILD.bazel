@@ -147,6 +147,20 @@ drake_cc_googletest(
     visibility = ["//visibility:public"]
 )
 
+drake_cc_googletest(
+    name = "cuda_sap_qp_test",
+    srcs = ["cuda_sap_qp_test.cc"],
+     tags = ["cuda"],
+    deps = [
+        "//common:essential",
+        ":cuda_sap_qp",
+        "@gtest//:main",
+        "@cuda//:cudart",
+    ],
+    visibility = ["//visibility:public"]
+)
+
+
 
 
 

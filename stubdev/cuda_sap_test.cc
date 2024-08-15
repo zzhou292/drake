@@ -1,3 +1,15 @@
+// cuda_sap_solver testing function
+// this unit test runs the sap solver with spheres constrained within a box
+// formed by 4 half-planes
+
+// By running this code in default, it runs with number of spheres:{4, 7, 10,
+// 11, 12, 13, 14, 15, 22}
+
+// and with batch size:{1, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900,
+// 1000, 2000, 5000, 10000, 15000}
+
+// The timing results will be printed out to the terminal
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>

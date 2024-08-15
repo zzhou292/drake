@@ -1,4 +1,8 @@
-#include "stubdev/cuda_gpu_collision.h"
+// Collision gtest
+// This gtest performs simple collision setups and print out to terminal for
+// debugging purposes
+
+#include "cuda_gpu_collision.cuh"
 
 #include <iostream>
 #include <vector>

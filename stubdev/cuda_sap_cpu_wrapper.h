@@ -1,3 +1,7 @@
+// Class definition for CudaSapCpuWrapper
+// CudaSapCPUWrapper contains a CollisionGPUData and a SAPGPUData
+// This completes a complete solve step for the simulation
+
 #pragma once
 
 #include <errno.h>
@@ -22,10 +26,11 @@
 #endif
 #include <iomanip>
 
-//
 class CudaSapCpuWrapper {
  public:
   CudaSapCpuWrapper() {
+    // each CudaSapCPUWrapper object contains a CollisionGPUData and a
+    // SAPGPUData
     gpu_collision_data = new CollisionGPUData();
     sap_gpu_data = new SAPGPUData();
   }

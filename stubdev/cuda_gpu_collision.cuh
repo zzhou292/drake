@@ -1,3 +1,5 @@
+// CollisionGPUData definition
+// Geometry data structure definition
 #pragma once
 
 #include <cmath>

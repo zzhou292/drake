@@ -1,3 +1,4 @@
+// Definition of SAPGPUData and data access device functions
 #pragma once
 
 #include "cuda_gpu_collision.cuh"

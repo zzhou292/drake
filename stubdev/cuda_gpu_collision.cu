@@ -1,11 +1,12 @@
+// GPU collision engine
+// The class CollisionGPUData is used to perform data mapping, storage, and
+// operations on GPU collision data
 #include <stdio.h>
 
 #include <iostream>
 
 #include "cuda_gpu_collision.cuh"
 #include <cuda_runtime.h>
-
-
 
 #ifndef gravity
 #define gravity -9.81

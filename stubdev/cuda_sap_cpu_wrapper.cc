@@ -1,3 +1,5 @@
+// A CPU entry point for cuda_sap_solver
+
 #include "cuda_sap_cpu_wrapper.h"
 
 #include <errno.h>
@@ -22,6 +24,7 @@
 #endif
 #include <iomanip>
 
+// Initialized data structure
 void CudaSapCpuWrapper::init(Sphere* h_spheres_in, Plane* h_plane_in,
                              int numProblems_in, int numSpheres_in,
                              int numPlanes_in, int numContacts_in,
@@ -54,6 +57,7 @@ void CudaSapCpuWrapper::init(Sphere* h_spheres_in, Plane* h_plane_in,
   }
 }
 
+// Perform num_steps with this function call
 void CudaSapCpuWrapper::step(int num_steps) {
   if (iter == 0) {
     if (writeout) {
@@ -155,6 +159,7 @@ void CudaSapCpuWrapper::step(int num_steps) {
   iter++;
 }
 
+// Destroy CudaSapCpuWrapper data structure
 void CudaSapCpuWrapper::destroy() {
   gpu_collision_data->Destroy();
   sap_gpu_data->Destroy();

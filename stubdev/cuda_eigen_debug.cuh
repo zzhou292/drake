@@ -1,10 +1,13 @@
+// Kernels for eigen debug test
+
 #pragma once
 
 #include <vector>
 
 #include <eigen3/Eigen/Dense>
 
-// Kernel function to perform matrix-vector multiplication
+// Kernel function to perform hand-rolled version of matrix-vector
+// multiplication
 __global__ void matVecMultiply(double* matrix_ptr, double* vector_ptr,
                                double* result_ptr, int N) {
   Eigen::Map<Eigen::MatrixXd> matrix(matrix_ptr, N, N);
@@ -21,6 +24,8 @@ __global__ void matVecMultiply(double* matrix_ptr, double* vector_ptr,
   }
 }
 
+// Kernel function to perform matrix-vector
+// multiplication using eigen function .row()
 __global__ void matVecMultiplyRow(double* matrix_ptr, double* vector_ptr,
                                   double* result_ptr, int N) {
   Eigen::Map<Eigen::MatrixXd> matrix(matrix_ptr, N, N);

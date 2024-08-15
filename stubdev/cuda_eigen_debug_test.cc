@@ -1,3 +1,9 @@
+// Cuda eigen debug test, used for testing the performance of .row() eigen
+// function
+
+// This test checks runtime for hand-rolled matrix vector multiplication with
+// multiplicatoin using .row() function
+
 #include "stubdev/cuda_eigen_debug.h"
 
 #include <iostream>

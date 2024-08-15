@@ -1,4 +1,4 @@
-
+// This is a Unit test for the SAP solver for a simple qp problem
 #include "stubdev/cuda_sap_qp.h"
 
 #include <vector>
