@@ -1,6 +1,0 @@
-directives:
-
-- add_model:
-    name: acrobot
-    file: package://drake/multibody/parsing/dm_control/suite/acrobot.xml
-

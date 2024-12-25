@@ -77,7 +77,8 @@ def _nvcc_object(
             # capability 6.x but the Tesla M60 on Jenkins only supports 5.2.
             # This will generate and include code compatible with 6.0, which
             # the graphic card will use if it is capable of.
-            "-gencode arch=compute_86,code=sm_86",
+            "-gencode arch=compute_61,code=sm_61",
+            #"-gencode arch=compute_86,code=sm_86",
             #"-gencode arch=compute_80,code=sm_80",
             # Input => output compile only (don't link).
             "$(location {}) -c -o $@".format(src),

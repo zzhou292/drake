@@ -1,3 +1,0 @@
-<mujoco model="nested">
-  <include file="pendulum.xml"/>
-</mujoco>

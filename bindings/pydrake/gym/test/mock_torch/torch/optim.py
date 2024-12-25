@@ -1,3 +1,0 @@
-
-Adam = None
-Optimizer = None

@@ -1,6 +1,0 @@
-ipywidgets
-matplotlib
-notebook
-Pillow
-pydot
-PyYAML
